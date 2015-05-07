@@ -18,9 +18,9 @@ def get_ip_address(ifname):
         struct.pack('256s', ifname[:15])
     )[20:24])
 
-ipaddress = get_ip_address('eth0')
+#ipaddress = get_ip_address('eth0')
 
-server = OSCServer( (ipaddress, 7110) )
+server = OSCServer( ('0.0.0.0', 7110) )
 
 #server = OSCServer( ("192.168.1.255", 7110) )
 server.timeout = 0
@@ -38,7 +38,7 @@ GPIO.setmode(GPIO.BOARD)
 #GPIO.setclock(CLKPIN,64000)
 
 GPIO.setup(RSTPIN1, GPIO.OUT)
-PIO.setup(CLKPIN, GPIO.OUT)
+GPIO.setup(CLKPIN, GPIO.OUT)
 GPIO.setup(DATAPIN, GPIO.OUT)
 
 
@@ -154,6 +154,7 @@ while run:
     sleep(0.01)
     # call user script
     each_frame()
+
 
 server.close()
 
