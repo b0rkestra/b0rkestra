@@ -1,6 +1,13 @@
 import spidev
 import time
 
+import RPi.GPIO as GPIO
+
+GPIO.setmode(GPIO.BOARD)  
+
+GPIO.setup(3, GPIO.OUT)
+
+
 def ReverseBits(byte):
 	byte = ((byte & 0xF0) >> 4) | ((byte & 0x0F) << 4)
 	byte = ((byte & 0xCC) >> 2) | ((byte & 0x33) << 2)
@@ -19,11 +26,20 @@ print(spi.cshigh)
 spi.cshigh = True
 
 while True:
+	GPIO.output(3,True)
+
 	to_send = [ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00)]
 	resp = spi.xfer2(to_send)
 
+	GPIO.output(3,False)
 	time.sleep(1)
-	to_send = [ReverseBits(0x3F), ReverseBits(0x3F), ReverseBits(0x3F), ReverseBits(0x3F), ReverseBits(0x3F), ReverseBits(0x3F)]
+
+	GPIO.output(3,True)
+
+	to_send = [ReverseBits(0x3F), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00)]
 	resp = spi.xfer2(to_send)
+	
+	GPIO.output(3,False)
+
 	time.sleep(1)
 

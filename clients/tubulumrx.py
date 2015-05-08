@@ -3,6 +3,8 @@
 import socket
 import fcntl
 import struct
+import math
+import spidev
 
 from OSC import OSCServer
 import sys
@@ -18,31 +20,42 @@ def get_ip_address(ifname):
         struct.pack('256s', ifname[:15])
     )[20:24])
 
-#ipaddress = get_ip_address('eth0')
+#Need this as rasberry pi is fuck ass backward
+def ReverseBits(byte):
+    byte = ((byte & 0xF0) >> 4) | ((byte & 0x0F) << 4)
+    byte = ((byte & 0xCC) >> 2) | ((byte & 0x33) << 2)
+    byte = ((byte & 0xAA) >> 1) | ((byte & 0x55) << 1)
+    return byte
+
+def ReverseBitsInSet(byteset):
+
+    for x in range(0, 5):
+        byteset[x] = ReverseBits(byteset[x])
+    return byteset
+
 
 server = OSCServer( ('0.0.0.0', 7110) )
-
-#server = OSCServer( ("192.168.1.255", 7110) )
 server.timeout = 0
 run = True
 
 
-RSTPIN1 = 11;
-CLKPIN = 12;
-DATAPIN = 13    
+RSTPIN1 = 3; 
+RSTPIN2 = 5;
+RSTPIN3 = 7;    
+RSTPIN4 = 11;    
+
 
 GPIO.setmode(GPIO.BOARD)  
 
-#setup clock
-#GPIO.setup(CLKPIN,GPIO.ALT0)
-#GPIO.setclock(CLKPIN,64000)
-
 GPIO.setup(RSTPIN1, GPIO.OUT)
-GPIO.setup(CLKPIN, GPIO.OUT)
-GPIO.setup(DATAPIN, GPIO.OUT)
+GPIO.setup(RSTPIN2, GPIO.OUT)
+GPIO.setup(RSTPIN3, GPIO.OUT)
+GPIO.setup(RSTPIN4, GPIO.OUT)
 
-
-
+spi = spidev.SpiDev()
+spi.open(0,0)
+spi.mode=0b00
+spi.cshigh = True
 
 
 class FuncThread(threading.Thread):
@@ -55,19 +68,76 @@ class FuncThread(threading.Thread):
         self._target(*self._args)
 
 
-def note(gpio, pin, vel,onval):
+def note(gpio, args, onval):
 
-    offval = False
-    if onval == False:
-        offval = True
+ #note decides which pot we set, need to build 48 bits for clocking in. 
+    # if you and with 0xC0 then it 'no note'
+    # just and with 0x3F if we want a note. 
 
-    sleeptime = (0.07/127)*vel;
-    print(vel,sleeptime)
-    gpio.output(pin,onval)
-    sleep(sleeptime)
-    gpio.output(pin,offval)
+    set1 = genEmptyBytes()
+    set2 = genEmptyBytes()
+    set3 = genEmptyBytes()
+    set4 = genEmptyBytes()
+    
+    byteset = set1
+    offset = 48
+    setpin = RSTPIN1
+
+    #first 6 notes
+    if((args[0] >= 48) and (args[0] <= 53)):
+        byteset = set1
+        offset = 48
+        setpin = RSTPIN1
+
+    elif((args[0] >= 54) and (args[0] <= 59)):
+        byteset = set2
+        offset = 54
+        setpin = RSTPIN2
+
+
+    elif((args[0] >= 60) and (args[0]<= 65)):
+        byteset = set3
+        offset = 60
+        setpin = RSTPIN3
+
+
+    elif((args[0] >= 66) and (args[0] <= 71)):
+        byteset = set4
+        offset = 66        
+        setpin = RSTPIN4
+
+    byteset = setByte(byteset[args[0] - offset], args[1])
+    vel = args[1]
+
+
+
+    GPIO.output(setpin,True)
+    spi.xfer2(ReverseBitsInSet(byteset))
+    GPIO.output(setpin,False)
+
+
+    #all a bit shit this, need to use note offs to stop it... butttttt.. for now...
+    sleep(0.1)
+    GPIO.output(setpin,True)
+    spi.xfer2(genOffBytes())
+    GPIO.output(setpin,False)
+
     return
 
+def genEmptyBytes():
+    bytes = [0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0];
+    return bytes;
+
+def genOffBytes():
+    bytes = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+    return bytes;
+
+
+def setByte(byte, notevel):
+    sixtyfourbase = math.trunc((notevel/127)*64)
+    #byte = byte & 0x3F not do vel for now
+    byte = 0x3F
+    return byte;
 
 
 # this method of reporting timeouts only works by convention
@@ -87,50 +157,11 @@ def user_callback(path, tags, args, source):
     # tags will contain 'fff'
     # args is a OSCMessage with data
     # source is where the message came from (in case you need to reply)
-    print ("Now do something with", user,args) 
     
-    print(args)
-
-    #note decides which pot we set, need to build 48 bits for clocking in. 
-
-
-
-
-    
-    if(args[0]==60):
-        pin = 3
-        onval=True
-
-    elif(args[0]==61):
-        pin = 5
-        onval=True
-
-    elif(args[0]==62):
-        pin =7
-        onval=True
-
-    elif(args[0]==63):
-        pin = 11
-        onval=False   
-
-    elif(args[0]==64):
-        pin = 13
-        onval=False
-
-    elif(args[0]==65):
-        pin = 15
-        onval=False
-
-
-    vel = args[1]
-    print(vel)
+   
 
     FuncThread(note, GPIO, pin,vel,onval).start()
     
-    #GPIO.output(3,True)
-    #sleep(0.06)
-    #GPIO.output(3,False)
-
 
 def quit_callback(path, tags, args, source):
     # don't do this at home (or it'll quit blender)
