@@ -29,9 +29,10 @@ def ReverseBits(byte):
 
 def ReverseBitsInSet(byteset):
 
+    yourmum = [0x00,0x00,0x00,0x00,0x00,0x00]
     for x in range(0, 5):
-        byteset[x] = ReverseBits(byteset[x])
-    return byteset
+        yourmum[x] = ReverseBits(byteset[x])
+    return yourmum  
 
 
 server = OSCServer( ('0.0.0.0', 7110) )
@@ -68,7 +69,7 @@ class FuncThread(threading.Thread):
         self._target(*self._args)
 
 
-def note(gpio, args, onval):
+def note(gpio, args):
 
  #note decides which pot we set, need to build 48 bits for clocking in. 
     # if you and with 0xC0 then it 'no note'
@@ -82,6 +83,8 @@ def note(gpio, args, onval):
     byteset = set1
     offset = 48
     setpin = RSTPIN1
+
+    print(args[0])
 
     #first 6 notes
     if((args[0] >= 48) and (args[0] <= 53)):
@@ -106,7 +109,7 @@ def note(gpio, args, onval):
         offset = 66        
         setpin = RSTPIN4
 
-    byteset = setByte(byteset[args[0] - offset], args[1])
+    byteset[args[0] - offset] = setByte(byteset[args[0] - offset], args[1])
     vel = args[1]
 
 
@@ -160,7 +163,7 @@ def user_callback(path, tags, args, source):
     
    
 
-    FuncThread(note, GPIO, pin,vel,onval).start()
+    FuncThread(note, GPIO, args).start()
     
 
 def quit_callback(path, tags, args, source):
