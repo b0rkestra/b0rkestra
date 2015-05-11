@@ -56,7 +56,6 @@ class MidiInputHandler(object):
             #oscsend('path',firstbit)
 
         elif (firstbit ==9):
-
           #  path = '/drums/'+str(chan)+'/noteon/'  
             path = ""
             if (chan == 15):
@@ -86,12 +85,13 @@ class MidiInputHandler(object):
         oscmsg.setAddress(path)
         oscmsg.append(val)
 
-#        def sendto(self, msg, address, timeout=None):
+#       def sendto(self, msg, address, timeout=None):
 
 
-        self.c.sendto(oscmsg,("192.168.1.13",7110))
+        #self.c.sendto(oscmsg,("192.168.1.13",7110))
         #self.c.sendto(oscmsg,("255.255.255.255",7110))
-    
+        self.c.sendto(oscmsg,("192.168.1.255",7110))
+
 
 port = sys.argv[1] if len(sys.argv) > 1 else None
 try:
