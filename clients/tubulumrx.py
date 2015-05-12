@@ -30,7 +30,7 @@ def ReverseBits(byte):
 def ReverseBitsInSet(byteset):
 
     yourmum = [0x00,0x00,0x00,0x00,0x00,0x00]
-    for x in range(0, 5):
+    for x in range(0, 6):
         yourmum[x] = ReverseBits(byteset[x])
     return yourmum  
 
@@ -59,6 +59,8 @@ spi.mode=0b00
 spi.cshigh = True
 
 
+
+
 class FuncThread(threading.Thread):
     def __init__(self, target, *args):  
         self._target = target
@@ -79,6 +81,14 @@ def note(gpio, args):
     set2 = genEmptyBytes()
     set3 = genEmptyBytes()
     set4 = genEmptyBytes()
+
+    #GPIO.output(3,True)
+    #byte = 0xfc
+    #arr = [byte,byte,byte,byte,byte,byte]
+    #spi.xfer2(arr)
+    #GPIO.output(3,True)
+    #return
+
     
     byteset = set1
     offset = 48
@@ -109,8 +119,12 @@ def note(gpio, args):
         offset = 66        
         setpin = RSTPIN4
 
+    else: return
+
     byteset[args[0] - offset] = setByte(byteset[args[0] - offset], args[1])
     vel = args[1]
+
+    print(byteset,ReverseBitsInSet(byteset))
 
 
 
@@ -120,7 +134,7 @@ def note(gpio, args):
 
 
     #all a bit shit this, need to use note offs to stop it... butttttt.. for now...
-    sleep(0.1)
+    sleep(0.01)
     GPIO.output(setpin,True)
     spi.xfer2(genOffBytes())
     GPIO.output(setpin,False)
@@ -185,7 +199,7 @@ def each_frame():
 # simulate a "game engine"
 while run:
     # do the game stuff:
-    sleep(0.01)
+    sleep(0.005)
     # call user script
     each_frame()
 
