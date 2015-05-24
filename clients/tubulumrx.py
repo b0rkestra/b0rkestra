@@ -59,7 +59,17 @@ spi.mode=0b00
 spi.cshigh = True
 
 
+#make all off
+def makeOff(pin):
+    GPIO.output(pin,True)
+    spi.xfer2([0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+    GPIO.output(pin,False)
 
+
+makeOff(RSTPIN1)
+makeOff(RSTPIN2)
+makeOff(RSTPIN3)
+makeOff(RSTPIN4)
 
 class FuncThread(threading.Thread):
     def __init__(self, target, *args):  
@@ -130,19 +140,20 @@ def note(gpio, args):
 
     GPIO.output(setpin,True)
     spi.xfer2(ReverseBitsInSet(byteset))
-    GPIO.output(setpin,False)
+    #GPIO.output(setpin,False)
 
 
     #all a bit shit this, need to use note offs to stop it... butttttt.. for now...
     sleep(0.01)
-    GPIO.output(setpin,True)
+    #GPIO.output(setpin,True)
     spi.xfer2(genOffBytes())
     GPIO.output(setpin,False)
 
     return
 
 def genEmptyBytes():
-    bytes = [0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0];
+    byte = 0xC0
+    bytes = [byte, byte, byte, byte, byte, byte];
     return bytes;
 
 def genOffBytes():
