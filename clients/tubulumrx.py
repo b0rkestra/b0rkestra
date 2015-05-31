@@ -39,6 +39,8 @@ server = OSCServer( ('0.0.0.0', 7110) )
 server.timeout = 0
 run = True
 
+GPIO.setmode(GPIO.BOARD)  
+
 
 RSTPIN1 = 3; 
 RSTPIN2 = 5;
@@ -46,7 +48,6 @@ RSTPIN3 = 7;
 RSTPIN4 = 11;    
 
 
-GPIO.setmode(GPIO.BOARD)  
 
 GPIO.setup(RSTPIN1, GPIO.OUT)
 GPIO.setup(RSTPIN2, GPIO.OUT)
@@ -56,6 +57,7 @@ GPIO.setup(RSTPIN4, GPIO.OUT)
 spi = spidev.SpiDev()
 spi.open(0,0)
 spi.mode=0b00
+#spi.max_speed_hz = 500000
 spi.cshigh = True
 
 
@@ -66,10 +68,10 @@ def makeOff(pin):
     GPIO.output(pin,False)
 
 
-makeOff(RSTPIN1)
-makeOff(RSTPIN2)
-makeOff(RSTPIN3)
-makeOff(RSTPIN4)
+#makeOff(RSTPIN4)
+#makeOff(RSTPIN3)
+#makeOff(RSTPIN2)
+#makeOff(RSTPIN1)
 
 class FuncThread(threading.Thread):
     def __init__(self, target, *args):  
@@ -134,20 +136,48 @@ def note(gpio, args):
     byteset[args[0] - offset] = setByte(byteset[args[0] - offset], args[1])
     vel = args[1]
 
-    print(byteset,ReverseBitsInSet(byteset))
+    
+    GPIO.output(setpin,True)
 
+    #to_send = [ReverseBits(0x3F), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00)]
+    to_send = ReverseBitsInSet(byteset)
+    print(setpin, to_send)
+    resp = spi.xfer2(to_send)
 
+    GPIO.output(setpin,False)
+    sleep(0.05)
 
     GPIO.output(setpin,True)
-    spi.xfer2(ReverseBitsInSet(byteset))
+    #to_send = [ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00)]
+
+    resp = spi.xfer2(genOffBytes())
+    
+    GPIO.output(setpin,False)
+
+    '''
+    #The code below is basically fine. excpet its not. no idea why. fucking python. 
+
+
+    print(setpin, byteset,ReverseBitsInSet(byteset), [ReverseBits(0x3F), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00)])
+
+    GPIO.output(3,True)
+    to_send = [ReverseBits(0x3F), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00)]
+
+    #spi.xfer2(ReverseBitsInSet(byteset))
+
+    what =spi.xfer2(to_send)
     #GPIO.output(setpin,False)
 
 
     #all a bit shit this, need to use note offs to stop it... butttttt.. for now...
-    sleep(0.01)
+    sleep(0.1)
     #GPIO.output(setpin,True)
-    spi.xfer2(genOffBytes())
-    GPIO.output(setpin,False)
+    to_send = [ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00)]
+
+    resp = spi.xfer2(to_send)    
+    GPIO.output(3   ,False)
+    '''
+
 
     return
 

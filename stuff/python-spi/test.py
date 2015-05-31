@@ -5,7 +5,6 @@ import RPi.GPIO as GPIO
 
 GPIO.setmode(GPIO.BOARD)  
 
-GPIO.setup(3, GPIO.OUT)
 
 
 def ReverseBits(byte):
@@ -14,7 +13,9 @@ def ReverseBits(byte):
 	byte = ((byte & 0xAA) >> 1) | ((byte & 0x55) << 1)
 	return byte
 
+pin = 5
 
+GPIO.setup(pin, GPIO.OUT)
 
 spi = spidev.SpiDev()
 spi.open(0,0)
@@ -25,21 +26,29 @@ print(spi.lsbfirst)
 print(spi.cshigh)
 spi.cshigh = True
 
+
+
+
+
 while True:
-	GPIO.output(3,True)
+	GPIO.output(pin,True)
 
 	to_send = [ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00)]
 	resp = spi.xfer2(to_send)
+	resp = spi.xfer2(to_send)
 
-	GPIO.output(3,False)
+
+	GPIO.output(pin,False)
 	time.sleep(1)
 
-	GPIO.output(3,True)
+	GPIO.output(pin,True)
 
-	to_send = [ReverseBits(0x3F), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00)]
+	to_send = [ReverseBits(0x3F), ReverseBits(0x3F), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00)]
 	resp = spi.xfer2(to_send)
+	resp = spi.xfer2(to_send)
+
 	
-	GPIO.output(3,False)
+	GPIO.output(pin,False)
 
 	time.sleep(1)
 
