@@ -55,7 +55,8 @@ class MidiInputHandler(object):
             print(message)
             #oscsend('path',firstbit)
 
-        elif (firstbit ==9):
+        #note on / off
+        elif ((firstbit ==9) or (firstbit ==8)):
           #  path = '/drums/'+str(chan)+'/noteon/'  
             path = ""
             if (chan == 15):
@@ -74,7 +75,11 @@ class MidiInputHandler(object):
                 print "no instrument on channel", chan
                 return 
             value = [message[1],message[2]]
+            if(firstbit ==8):
+                value = [message[1],0]
+            
             print(value)
+
             self.oscsend(path,value)
 
 
