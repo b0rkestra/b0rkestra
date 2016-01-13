@@ -234,3 +234,11 @@ def print_events(pattern, exclude=["Note On"]):
             if not event.name in exclude:
                 print event.name
                 print event
+
+def pattern_to_resolution(pattern, resolution=480):
+    current_resolution = pattern.resolution
+    res_multiplier = float(resolution / current_resolution)
+    for track in pattern:
+        for event in track:
+            event.tick = int(res_multiplier*event.tick)
+    pattern.resolution = resolution

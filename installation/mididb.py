@@ -104,7 +104,7 @@ def json_to_record(json_record):
 
 def get_midi_filenames(directory):
     filenames = []
-    for root, dirs, files in os.walk("."):
+    for root, dirs, files in os.walk(directory):
         path = root
         for filename in files:
             filename = os.path.join(path, filename)

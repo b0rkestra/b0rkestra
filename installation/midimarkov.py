@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 import midi
+import midiutil
+import mididb
+import random
 from itertools import tee, izip
 
 def nwise(iterable, n=2):
@@ -33,16 +36,67 @@ class MarkovModel:
             else:
                 self.model[ngram][next_state] += 1
 
+    def weighted_random_nexstate(self, state):
+
+        next_states = self.model[state]
+        next_states = list(next_states.items())
+        return self.__weighted_choice__( next_states)
+
+
+    def __weighted_choice__(self, choices):
+        total = sum(w for c, w in choices)
+        r = random.uniform(0, total)
+        upto = 0
+        if r > 1:
+            print "rand"
+        else:
+            print "boo"
+        for c, w in choices:
+           if upto + w >= r:
+              return c
+           upto += w
+        assert False, "Shouldn't get here"
+
 
 def main():
-    pattern = midi.read_midifile("./midi/drum_patterns.mid")
-    
-    markov = MarkovModel(ngram_size=2)
-    for track in pattern:
-        markov.bulk_add(track)
-    
-    a = markov.model
-    print a
+
+    markov = MarkovModel(ngram_size=10)
+    filenames = mididb.get_midi_filenames(".")
+
+
+    for index,filename in enumerate(filenames):
+        title = "("+str(index)+"/"+str(len(filenames))+") " + filename
+        #print title
+        #print "="*len(title)
+        pattern = midi.read_midifile(filename)
+        time_sigs = midiutil.get_events_from_pattern(pattern, "Time Signature")
+        for time_sig in time_sigs:
+            if time_sig.denominator !=4 and time_sig.numerator !=4:
+                print time_sig.denominator, time_sig.numerator
+            if pattern.resolution != 240:
+                print pattern.resolution, filename 
+            #print time_sig.denominator, time_sig.numerator
+
+
+    #     for track in pattern:
+    #         markov.bulk_add(track)
+
+
+    # output = list(random.choice(markov.model.keys()))
+
+    # for a in range(200):
+    #     next_state = markov.weighted_random_nexstate( tuple(output[-(markov.ngram_size):]) )
+    #     output.append(next_state)
+
+    # pattern = midi.Pattern()
+    # track = midi.Track()
+    # for event in output:
+    #     track.append(event)
+
+    # pattern.append(track)
+    # midi.write_midifile("output.mid", pattern)
+
+
 
     # a.sort()
     # print a[3] == a[5]
