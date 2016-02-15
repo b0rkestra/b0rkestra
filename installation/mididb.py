@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import hashlib
+import random
 import midi
 import midisanitize
 import midiutil
@@ -9,7 +10,7 @@ import json
 import copy
 import base64
 import os
-
+import matplotlib.pyplot as plt
 
 def generate_id(f):
     hash = hashlib.md5()
@@ -28,53 +29,37 @@ def generate_id_from_data(data):
     return hash.hexdigest()
 
 
-
 def create_record(filename):
-    print "## Creating record", filename
-    print "### Sanitizing"
+    print "Creating record", filename
     record = {}
-    record["filename"] = filename
     record["id"] = generate_id(open(filename, "rb"))
+    record["filename"] = filename
 
-    pattern = midi.read_midifile("midi/5RAP_04.MID")
-    pattern = midisanitize.sanitize(pattern)
-    
+    try:
+        pattern = midi.read_midifile(filename)
+    except TypeError:
+        print "Error"
+        return None
+
     record["data"] = midiutil.midi_to_data(pattern)
-    record["ticks_per_bar"] = midiutil.calculate_bar_duration(pattern)
-    pattern.make_ticks_abs()
-    record["max_tick"] = pattern[0][-1].tick
-    pattern.make_ticks_rel()
-
+    record["time_signature"] = midiutil.get_time_signature(pattern)
+    record["tempo"] = midiutil.get_tempo(pattern)
     record["track_names"] = midiutil.get_track_names(pattern)
-
-    record["bars"] = []
-    print "### Splitting to Bars"
-    for bar in range(record["max_tick"]/record["ticks_per_bar"]):
-        bar_pattern = midiutil.get_bar_from_pattern(pattern, bar)
-        bar_id = generate_id_from_data(midiutil.midi_to_data(bar_pattern))
-        bar = {"name": str(bar), "id":bar_id, "data":midiutil.midi_to_data(bar_pattern)}
-        record["bars"].append(bar)
+    record["resolution"] = pattern.resolution
+    record["note_distribution"] = midiutil.get_note_distribution(pattern,[9])
+    record["key"] = midiutil.guess_key(pattern, record["note_distribution"])
+    record["scale"] = midiutil.guess_scale(record["key"], record["note_distribution"])
     
-    record["tracks"] = []
-    tracks = midiutil.split_tracks_to_patterns(pattern)
-    print "### Splitting to Tracks"
-    for index, name in enumerate(record["track_names"]):
-        track_pattern = tracks[index]
-        track_id = generate_id_from_data(midiutil.midi_to_data(track_pattern))
-        track = {"name": name, "data":midiutil.midi_to_data(track_pattern)}
-        record["tracks"].append(track)
 
-    record["bars_tracks"] = []
-    print "### Splitting to Tracks and Bars"
-    for bar in range(record["max_tick"]/record["ticks_per_bar"]):
-        bar_pattern = midiutil.get_bar_from_pattern(pattern, bar)
-        tracks = midiutil.split_tracks_to_patterns(bar_pattern)
-        
-        for index, name in enumerate(record["track_names"]):
-            bar_track_pattern = tracks[index]
-            bars_tracks_id = generate_id_from_data(midiutil.midi_to_data(bar_track_pattern))
-            bar_track = {"name": "track:"+name+" bar:"+str(bar), "id":bars_tracks_id, "data":midiutil.midi_to_data(bar_track_pattern)}
-            record["bars_tracks"].append(bar_track)
+    for track in pattern:
+        print midiutil.get_track_name(track)
+        dist = midiutil.get_note_distribution(track, [], False)
+        plt.bar(range(len(dist)), dist.values(), align="center")
+        plt.xticks(range(len(dist)), dist.keys())
+        plt.show()
+
+    # dist = record["note_distribution"]
+    
 
     return record
 
@@ -82,24 +67,12 @@ def create_record(filename):
 def record_to_json(record):
     record = copy.deepcopy(record)
     record["data"] = base64.b64encode(record["data"])
-
-    for bar in record["bars"]:
-        bar["data"] = base64.b64encode(bar["data"])
-
-    for track in record["tracks"]:
-        track["data"] = base64.b64encode(track["data"])
     return json.dumps(record)
 
 
 def json_to_record(json_record):
     record = json.loads(json_record)
     record["data"] = base64.b64decode(record["data"])
-
-    for bar in record["bars"]:
-        bar["data"] = base64.b64decode(bar["data"])
-
-    for track in record["tracks"]:
-        track["data"] = base64.b64decode(track["data"])
     return record
 
 def get_midi_filenames(directory):
@@ -120,34 +93,6 @@ def load(filename="midi.shelve"):
 
 
 
-def id_pattern_itter(db):
-    for record in db["records"]:
-        record = db["records"][record]
-        yield (record["id"], midi.read_midifile(StringIO.StringIO(record["data"])))
-        for bar in record["bars"]:
-            yield(bar["id"],midi.read_midifile(StringIO.StringIO(bar["data"])))
-        for track in record["bars"]:
-            yield(track["id"],midi.read_midifile(StringIO.StringIO(track["data"])))
-        for bar_track in record["bars_tracks"]:
-            yield(bar_track["id"],midi.read_midifile(StringIO.StringIO(bar_track["data"])))
-
-def id_bartrack_itter(db):
-    for record in db["records"]:
-        record = db["records"][record]
-        for bar_track in record["bars_tracks"]:
-            yield(bar_track["id"],midi.read_midifile(StringIO.StringIO(bar_track["data"])))
-
-def id_bar_itter(db):
-    for record in db["records"]:
-        record = db["records"][record]
-        for track in record["bars"]:
-            yield(track["id"],midi.read_midifile(StringIO.StringIO(track["data"])))
-
-def id_track_itter(db):
-    for record in db["records"]:
-        record = db["records"][record]
-        for track in record["bars"]:
-            yield(track["id"],midi.read_midifile(StringIO.StringIO(track["data"])))
 
 class MidiDB:
     def __init__(self, filename="midi.shelve"):
@@ -159,34 +104,28 @@ class MidiDB:
                 return record
         return None
 
-    def itter_id_pattern(self):
-        return id_pattern_itter(self.shelve_db)
-
-    def itter_id_bartrack(self):
-        return id_bartrack_itter(self.shelve_db)
-
-    def itter_id_bar(self):
-        return id_bar_itter(self.shelve_db)
-
-    def itter_id_track(self):
-        return id_track_itter(self.shelve_db)
-
 
 def main():
-    shelve_midi_db = shelve.open("midi.shelve", "w")
-    records = {}
-    filenames = get_midi_filenames(".")
 
-    for index,filename in enumerate(filenames):
-        title = "("+str(index)+"/"+str(len(filenames))+") " + filename
-        print title
-        print "="*len(title)
-        record = create_record(filename)
-        records[record["id"]] = record
+    filenames = get_midi_filenames("./midi-sample")
+    
+    for filename in [random.choice(filenames)]:
+        create_record(filename)
 
-    shelve_midi_db["records"] = records
 
-    shelve_midi_db.close()
+    # shelve_midi_db = shelve.open("midi.shelve", "w")
+    # records = {}
+
+    # for index,filename in enumerate(filenames):
+    #     title = "("+str(index)+"/"+str(len(filenames))+") " + filename
+    #     print title
+    #     print "="*len(title)
+    #     record = create_record(filename)
+    #     records[record["id"]] = record
+
+    # shelve_midi_db["records"] = records
+
+    # shelve_midi_db.close()
 
 
 

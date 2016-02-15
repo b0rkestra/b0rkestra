@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import json
 import midi
 import midiutil
 import mididb
@@ -62,6 +62,10 @@ def main():
 
     markov = MarkovModel(ngram_size=10)
     filenames = mididb.get_midi_filenames(".")
+
+    f = open("filenames.json", "w")
+    f.write(json.dumps(filenames))
+    f.close
 
 
     for index,filename in enumerate(filenames):
