@@ -51,12 +51,12 @@ def create_record(filename):
     record["scale"] = midiutil.guess_scale(record["key"], record["note_distribution"])
     
 
-    for track in pattern:
-        print midiutil.get_track_name(track)
-        dist = midiutil.get_note_distribution(track, [], False)
-        plt.bar(range(len(dist)), dist.values(), align="center")
-        plt.xticks(range(len(dist)), dist.keys())
-        plt.show()
+    #for track in pattern:
+    #    print midiutil.get_track_name(track)
+    #    dist = midiutil.get_note_distribution(track, [], False)
+    #    plt.bar(range(len(dist)), dist.values(), align="center")
+    #    plt.xticks(range(len(dist)), dist.keys())
+    #    plt.show()
 
     # dist = record["note_distribution"]
     
@@ -109,23 +109,22 @@ def main():
 
     filenames = get_midi_filenames("./midi-sample")
     
-    for filename in [random.choice(filenames)]:
-        create_record(filename)
+    #for filename in [random.choice(filenames)]:
+    #    print create_record(filename)
 
 
-    # shelve_midi_db = shelve.open("midi.shelve", "w")
-    # records = {}
+    shelve_midi_db = shelve.open("midi.shelve", "c", writeback=True)
 
-    # for index,filename in enumerate(filenames):
-    #     title = "("+str(index)+"/"+str(len(filenames))+") " + filename
-    #     print title
-    #     print "="*len(title)
-    #     record = create_record(filename)
-    #     records[record["id"]] = record
+    for index,filename in enumerate(filenames):
+        title = "("+str(index)+"/"+str(len(filenames))+") " + filename
+        print title
+        print "="*len(title)
+        record = create_record(filename)
+        if record != None:
+            shelve_midi_db[record["id"]] = record
+            #shelve_midi_db.sync()
 
-    # shelve_midi_db["records"] = records
-
-    # shelve_midi_db.close()
+    shelve_midi_db.close()
 
 
 
