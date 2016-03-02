@@ -29,7 +29,7 @@ def generate_id_from_data(data):
     return hash.hexdigest()
 
 
-def create_record(filename):
+def create_record(filename, include_data = False):
     print "Creating record", filename
     record = {}
     record["id"] = generate_id(open(filename, "rb"))
@@ -37,11 +37,12 @@ def create_record(filename):
 
     try:
         pattern = midi.read_midifile(filename)
-    except TypeError:
+    except:
         print "Error"
         return None
-
-    record["data"] = midiutil.midi_to_data(pattern)
+    
+    if include_data:
+        record["data"] = midiutil.midi_to_data(pattern)
     record["time_signature"] = midiutil.get_time_signature(pattern)
     record["tempo"] = midiutil.get_tempo(pattern)
     record["track_names"] = midiutil.get_track_names(pattern)
@@ -92,39 +93,96 @@ def load(filename="midi.shelve"):
     return shelve_midi_db
 
 
-
-
-class MidiDB:
-    def __init__(self, filename="midi.shelve"):
-        self.shelve_db = shelve.open(filename)
-
-    def get_pattern_by_id(self, passed_id):
-        for pattern_id, record in id_pattern_itter(self.shelve_db):
-            if pattern_id == passed_id:
-                return record
-        return None
-
-
-def main():
-
-    filenames = get_midi_filenames("./midi-sample")
-    
-    #for filename in [random.choice(filenames)]:
-    #    print create_record(filename)
-
-
-    shelve_midi_db = shelve.open("midi.shelve", "c", writeback=True)
+def populate_shelve_db(db_filename="metamidi.shelve", directory="./midi-sample", include_data=False):
+    shelve_midi_db = shelve.open(db_filename, "c", writeback=True)
 
     for index,filename in enumerate(filenames):
         title = "("+str(index)+"/"+str(len(filenames))+") " + filename
         print title
         print "="*len(title)
-        record = create_record(filename)
+        record = create_record(filename, include_data)
         if record != None:
             shelve_midi_db[record["id"]] = record
             #shelve_midi_db.sync()
 
-    shelve_midi_db.close()
+    shelve_midi_db.close()    
+
+
+
+def create_json_filename_file(output_filename="filenames.json", directory="./midi"):
+    filenames = get_midi_filenames(directory)
+    filenames = json.dumps(filenames)
+    f = open(output_filename, "w")
+    f.write(filenames)
+    return filenames
+
+
+
+class MidiDB:
+    def __init__(self, filename="metamidi.shelve"):
+        self.shelve_db = shelve.open(filename)
+        self.keys = self.shelve_db.keys()
+        self.__key_index__ = {}
+        self.__scale_index__= {}
+
+        #populate key & scale indexs
+        for uid in self.keys:
+            record = self.shelve_db[uid]
+            if record["key"] in self.__key_index__:
+                self.__key_index__[record["key"]].append(record["id"])
+            else:
+                self.__key_index__[record["key"]] = [record["id"]]
+
+            for scale in record["scale"]:
+                if scale in self.__scale_index__:
+                    self.__scale_index__[scale].append(record["id"])
+                else:
+                    self.__scale_index__[scale] = [record["id"]]
+
+
+
+    def get_record(self, passed_id):
+        pattern = None
+        try:
+            record = self.shelve_db[passed_id]
+        except KeyError:
+            pass
+        return record
+
+
+    def get_pattern(self, passed_id):
+        record = self.get_record(passed_id)
+        pattern = None
+        if record != None: pattern = midi.read_midifile(record["filename"])
+        return pattern
+
+
+    def get_records_in_key(self, key):
+        if not key in self.__key_index__:
+            return []
+        records = []
+        for uid in self.__key_index__[key]:
+            records.append(self.shelve_db[uid])
+        return records
+
+
+    def get_records_in_scale(self, scale):
+        records = []
+        if not scale in self.__scale_index__:
+            return records
+        for uid in self.__scale_index__[scale]:
+            records.append(self.shelve_db[uid])
+        return records
+
+
+def main():
+    db = MidiDB();
+    #print db.get_record(db.keys[10]);
+    for key in db.__key_index__:
+        print key, len(db.__key_index__[key])
+    for scale in db.__scale_index__:
+        print scale, len(db.__scale_index__[scale])
+    #print len(db.get_records_in_key('A'))
 
 
 
