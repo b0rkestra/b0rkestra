@@ -104,7 +104,7 @@ class MidiRemapper:
 	def __init__(self, description_filename, pattern):
 		self.description = json.load(open(description_filename))
 		self.mappings = __build_mapping__(self.description, pattern)
-		print self.mappings
+		#print self.mappings
 
 	def remap(self, event):
 		if event.name != "Note On" and event.name != "Note Off":
@@ -114,6 +114,11 @@ class MidiRemapper:
 		event.pitch = remap[1]
 		return event
 
+	def remap_pattern(self, pattern):
+		for track in pattern:
+			for event in track:
+				event = self.remap(event) 
+		return pattern
 
 
 def main():

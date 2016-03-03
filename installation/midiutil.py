@@ -403,7 +403,7 @@ def print_events(pattern, exclude=["Note On"]):
 
 def pattern_to_resolution(pattern, resolution=480):
     current_resolution = pattern.resolution
-    res_multiplier = float(resolution / current_resolution)
+    res_multiplier = float(resolution / float(current_resolution))
     for track in pattern:
         for event in track:
             event.tick = int(res_multiplier*event.tick)

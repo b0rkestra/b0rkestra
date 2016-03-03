@@ -11,6 +11,8 @@ import copy
 import base64
 import os
 import matplotlib.pyplot as plt
+import midiremap
+
 
 def generate_id(f):
     hash = hashlib.md5()
@@ -124,6 +126,7 @@ class MidiDB:
         self.keys = self.shelve_db.keys()
         self.__key_index__ = {}
         self.__scale_index__= {}
+        self.__key_scale_index__= {}
 
         #populate key & scale indexs
         for uid in self.keys:
@@ -139,9 +142,12 @@ class MidiDB:
                 else:
                     self.__scale_index__[scale] = [record["id"]]
 
+                if (record["key"], scale) in self.__key_scale_index__:
+                    self.__key_scale_index__[(record["key"], scale)].append(record["id"])
+                else:
+                    self.__key_scale_index__[(record["key"], scale)] = [record["id"]]
 
-
-    def get_record(self, passed_id):
+    def record(self, passed_id):
         pattern = None
         try:
             record = self.shelve_db[passed_id]
@@ -149,15 +155,24 @@ class MidiDB:
             pass
         return record
 
+    def random_record(self):
+        uid = random.choice(self.keys)
+        return self.shelve_db[uid]
 
-    def get_pattern(self, passed_id):
-        record = self.get_record(passed_id)
+    def random_pattern(self):
+        record = self.random_record()
+        print record["id"]
+        pattern = midi.read_midifile(record["filename"])
+        return pattern
+
+    def pattern(self, passed_id):
+        record = self.record(passed_id)
         pattern = None
         if record != None: pattern = midi.read_midifile(record["filename"])
         return pattern
 
 
-    def get_records_in_key(self, key):
+    def records_in_key(self, key):
         if not key in self.__key_index__:
             return []
         records = []
@@ -166,7 +181,7 @@ class MidiDB:
         return records
 
 
-    def get_records_in_scale(self, scale):
+    def records_in_scale(self, scale):
         records = []
         if not scale in self.__scale_index__:
             return records
@@ -175,13 +190,48 @@ class MidiDB:
         return records
 
 
+    def records_in_key_and_scale(self, key, scale):
+        records = []
+        if not (key, scale) in self.__key_scale_index__:
+            return records
+        for uid in self.__key_scale_index__[(key, scale)]:
+            records.append(self.shelve_db[uid])
+        return records
+
+
+
 def main():
     db = MidiDB();
+
+
+    records = db.records_in_key("C")
+
+    result_pattern = midi.Pattern(resolution=480) 
+
+    songs = []
+    for i in range(5):
+        uid = random.choice(records)["id"];
+        pattern = db.pattern(uid)
+        midiutil.pattern_to_resolution(pattern, 480)
+
+        track = random.choice(pattern)
+        result_pattern.append(track)
+
+
+        songs.append(pattern)
+
+    remapper = midiremap.MidiRemapper("b0rkestra_description.json", result_pattern)
+    remapper.remap_pattern(result_pattern)
+
+
+    midi.write_midifile("test.mid", result_pattern)
+
+
     #print db.get_record(db.keys[10]);
-    for key in db.__key_index__:
-        print key, len(db.__key_index__[key])
-    for scale in db.__scale_index__:
-        print scale, len(db.__scale_index__[scale])
+    #for key in db.__key_index__:
+    #    print key, len(db.__key_index__[key])
+    #for scale in db.__scale_index__:
+    #    print scale, len(db.__scale_index__[scale])
     #print len(db.get_records_in_key('A'))
 
 
