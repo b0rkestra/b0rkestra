@@ -68,9 +68,12 @@ class MidiInputHandler(object):
             elif (chan == 1):
                 print "sunguitar"
                 path = "/sunguitar/1"
-            elif (chan == 2):
+            elif (chan == 3):
                 print "tubulum"
                 path = "/tubulum/1"
+            elif (chan == 2):
+                path = "/racketguitar/1"
+                print "racket"
             else:
                 print "no instrument on channel", chan
                 return 

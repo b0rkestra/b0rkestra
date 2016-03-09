@@ -7,7 +7,7 @@ import threading
 import RPi.GPIO as GPIO
 from RPIO import PWM
 
-server = OSCServer( ("192.168.1.11", 7110) )
+server = OSCServer( ('0.0.0.0', 7110) )
 server.timeout = 0
 run = True
 
