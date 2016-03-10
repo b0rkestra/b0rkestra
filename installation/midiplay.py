@@ -8,6 +8,49 @@ import midi.sequencer as sequencer
 from midiremap import MidiRemapper
 import mididb
 import midiutil
+import threading
+
+class MidiPlayer(threading.Thread):
+    def __init__(self, pattern_queue, resolution=480, client=14, port=0):
+        threading.Thread.__init__(self)
+        self.pattern_queue = pattern_queue
+        self.seq = sequencer.SequencerWrite(sequencer_resolution=resolution)
+        self.seq.subscribe_port(client, port)
+
+
+    def run(self):
+        pattern.make_ticks_abs()
+        events = []
+        for track in pattern:
+            for event in track:
+                event = remapper.remap(event)
+                events.append(event)
+        events.sort()
+        self.seq.start_sequencer()
+        for event in events:
+            buf = self.seq.event_write(event, False, False, True)
+            if buf == None:
+                continue
+            if buf < 1000:
+                time.sleep(.5)
+            while event.tick > self.seq.queue_get_tick_time():
+                self.seq.drain()
+                time.sleep(.5)
+
+
+class PatternMaker2K:
+    
+    def __init__(self, db, key="E",scale="Major" ):
+        self.db = db
+        self.key = key
+        self.scale = scale
+        self.tick = 0
+
+    def generate(self, ):
+        pass
+
+
+
 
 def main():
     client = 0
@@ -29,7 +72,7 @@ def main():
     print db.__scale_index__.keys()
 
 
-    records = db.records_in_key_and_scale("E", 'major')
+    records = db.records_in_key_and_scale("C", 'minor')
     print "Working group size", len(records)
     result_pattern = midi.Pattern(resolution=480) 
     songs = []
@@ -41,7 +84,7 @@ def main():
         result_pattern.append(track)
         songs.append(pattern)
 
-    result_pattern = db.pattern(random.choice(records)["id"])
+    #result_pattern = db.pattern(random.choice(records)["id"])
 
     remapper = MidiRemapper("b0rkestra_description.json", result_pattern)
     #remapper.remap_pattern(result_pattern)
@@ -71,9 +114,9 @@ def main():
             continue
         if buf < 1000:
             time.sleep(.5)
-    while event.tick > seq.queue_get_tick_time():
-        seq.drain()
-        time.sleep(.5)
+        while event.tick > seq.queue_get_tick_time():
+            seq.drain()
+            time.sleep(.5)
 
 
 if __name__ == "__main__":

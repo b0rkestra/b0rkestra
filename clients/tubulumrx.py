@@ -42,10 +42,11 @@ run = True
 GPIO.setmode(GPIO.BOARD)  
 
 
-RSTPIN1 = 3; 
-RSTPIN2 = 5;
-RSTPIN3 = 7;    
-RSTPIN4 = 11;    
+RSTPIN1 = 3 
+RSTPIN2 = 5
+RSTPIN3 = 7    
+RSTPIN4 = 11  
+bNoteOff = False
 
 
 
@@ -93,14 +94,6 @@ def note(gpio, args):
     set2 = genEmptyBytes()
     set3 = genEmptyBytes()
     set4 = genEmptyBytes()
-
-    #GPIO.output(3,True)
-    #byte = 0xfc
-    #arr = [byte,byte,byte,byte,byte,byte]
-    #spi.xfer2(arr)
-    #GPIO.output(3,True)
-    #return
-
     
     byteset = set1
     offset = 48
@@ -136,23 +129,30 @@ def note(gpio, args):
     byteset[args[0] - offset] = setByte(byteset[args[0] - offset], args[1])
     vel = args[1]
 
-    
-    GPIO.output(setpin,True)
+    if(vel!=0):
+        GPIO.output(setpin,True)
+        to_send = ReverseBitsInSet(byteset)
+        print(setpin, to_send)
+        resp = spi.xfer2(to_send)
 
-    #to_send = [ReverseBits(0x3F), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00)]
-    to_send = ReverseBitsInSet(byteset)
-    print(setpin, to_send)
-    resp = spi.xfer2(to_send)
+        GPIO.output(setpin,False)
+        
+    if(False ==bNoteOff):
+        sleep(0.1) #option now is to have note off. Might be better. 
 
-    GPIO.output(setpin,False)
-    sleep(0.05)
+        GPIO.output(setpin,True)
 
-    GPIO.output(setpin,True)
-    #to_send = [ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00), ReverseBits(0x00)]
+        resp = spi.xfer2(genOffBytes())
+        
+        GPIO.output(setpin,False)
 
-    resp = spi.xfer2(genOffBytes())
-    
-    GPIO.output(setpin,False)
+    elif(vel==0):
+        GPIO.output(setpin,True)    
+        resp = spi.xfer2(genOffBytes())     
+        GPIO.output(setpin,False)
+
+
+
 
     '''
     #The code below is basically fine. excpet its not. no idea why. fucking python. 
@@ -212,6 +212,7 @@ def user_callback(path, tags, args, source):
     # which user will be determined by path:
     # we just throw away all slashes and join together what's left
     user = ''.join(path.split("/"))
+    print('rx',path,tags,args)
     # tags will contain 'fff'
     # args is a OSCMessage with data
     # source is where the message came from (in case you need to reply)
@@ -219,6 +220,8 @@ def user_callback(path, tags, args, source):
    
 
     FuncThread(note, GPIO, args).start()
+
+
     
 
 def quit_callback(path, tags, args, source):
@@ -226,7 +229,15 @@ def quit_callback(path, tags, args, source):
     global run
     run = False
 
+def dummy_callback(path, tags, args, source):
+    pass
+
 server.addMsgHandler( "/tubulum/1", user_callback )
+
+server.addMsgHandler( "/drums/1", dummy_callback )
+server.addMsgHandler( "/racketguitar/1", dummy_callback )
+server.addMsgHandler( "/sunguitar/1", dummy_callback )
+
 server.addMsgHandler( "/quit", quit_callback )
 
 # user script that's called by the game engine every frame
