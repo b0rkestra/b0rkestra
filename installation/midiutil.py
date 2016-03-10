@@ -10,6 +10,7 @@ import StringIO
 import midisanitize
 import hashlib
 import operator
+from collections import Counter
 
 def midi_to_file_object(pattern):
     output_file = StringIO.StringIO()
@@ -49,6 +50,20 @@ def get_events_from_pattern(pattern, event_name):
         filtered_track = get_events_from_track(track, event_name)
         events += filtered_track
     return events
+
+
+def get_track_from_pattern_with_channel(pattern, channel):
+    for index, track in enumerate(pattern):
+        chans = []
+        for event in get_events_from_track(track, "Note On"):
+            chans.append(event.channel)
+        if len(chans) == 0:
+            continue
+        chans = Counter(chans)
+        if chans.most_common()[0][0] == channel:
+            return track
+    return None
+
 
 
 def remove_events_of_name_from_pattern(pattern, name):

@@ -76,14 +76,25 @@ def main():
     print "Working group size", len(records)
     result_pattern = midi.Pattern(resolution=480) 
     songs = []
-    for i in range(10):
-        uid = random.choice(records)["id"];
-        pattern = db.pattern(uid)
-        midiutil.pattern_to_resolution(pattern, 480)
-        track = random.choice(pattern)
+
+    channels = [2,1,9,1]
+    for channel in channels:
+        track = None
+        
+        while track == None:
+            uid = random.choice(records)["id"];
+            pattern = db.pattern(uid)
+            remapper = MidiRemapper("b0rkestra_description.json", pattern)
+            midiutil.pattern_to_resolution(pattern, 480)
+            pattern = remapper.remap_pattern(pattern)
+
+
+            track = midiutil.get_track_from_pattern_with_channel(pattern, channel)
+
         result_pattern.append(track)
         songs.append(pattern)
 
+    #print pattern
     #result_pattern = db.pattern(random.choice(records)["id"])
 
     remapper = MidiRemapper("b0rkestra_description.json", result_pattern)
@@ -101,6 +112,11 @@ def main():
     seq.subscribe_port(client, port)
     
     pattern.make_ticks_abs()
+    
+    for event in pattern[2]:
+        event.tick = int(event.tick/1.5)
+
+
     events = []
     for track in pattern:
         for event in track:
