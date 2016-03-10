@@ -35,6 +35,8 @@ def get_events_from_track(track, event_name):
     return events
 
 
+
+
 def remove_events_from_track(track, events):
     for event in events:
         try:
@@ -42,6 +44,11 @@ def remove_events_from_track(track, events):
             print "    removing", event
         except ValueError:
             pass
+
+def remove_events_of_name_from_track(track, event_name):
+    events = get_events_from_track(track, event_name)
+    remove_events_from_track(track, events)
+
 
 
 def get_events_from_pattern(pattern, event_name):
@@ -79,7 +86,8 @@ def remove_events_of_name_from_pattern(pattern, name):
 def calculate_bar_duration(pattern):    
     time_signatures = get_events_from_pattern(pattern, "Time Signature")
     if len(time_signatures) == 0:
-        raise IndexError("No time signatures in pattern")
+        time_signatures.append(midi.TimeSignatureEvent(denominator=4,numerator=4))
+        #raise IndexError("No time signatures in pattern")
     #just take the first time signature
     time_signature = time_signatures[0]
     bar_duration = pattern.resolution * time_signature.denominator * time_signature.numerator
@@ -129,12 +137,28 @@ def get_bar_from_pattern(pattern, bar_number):
 
     for track in pattern:
         to_remove = []
-        track_name = get_events_from_track(track, "Track Name")[0]
-        track_name.tick = 0
-        tempo = get_events_from_track(track, "Set Tempo")[0]
-        tempo.tick = 0
-        time_signature = get_events_from_track(track, "Time Signature")[0]
-        time_signature.tick = 0
+
+
+        track_names = get_events_from_track(track, "Track Name")
+        track_name = None
+        if len(track_names):
+            track_name = track_names[0]
+            track_name.tick = 0
+
+
+        tempos = get_events_from_track(track, "Set Tempo")
+        tempo = None
+        if len(tempos):
+            tempo = tempos[0]
+            tempo.tick = 0
+
+
+        time_signatures =get_events_from_track(track, "Time Signature") 
+        time_signature = None
+        if len(time_signatures):
+            time_signature = time_signatures[0]
+            time_signature.tick = 0
+
 
         for event in track:
             if event.tick >= tick_offset and event.tick < tick_offset + bar_length:
@@ -146,9 +170,13 @@ def get_bar_from_pattern(pattern, bar_number):
             track.remove(event)
 
         track.append(midi.EndOfTrackEvent(tick=bar_length-1))
-        track.insert(0, track_name)
-        track.insert(0, tempo)
-        track.insert(0, time_signature)
+        
+        if track_name:
+            track.insert(0, track_name)
+        if tempo:
+            track.insert(0, tempo)
+        if time_signature:
+            track.insert(0, time_signature)
 
     pattern.make_ticks_rel()
     return pattern
@@ -173,6 +201,38 @@ def get_track_events_at_tick(track, tick, name = None):
         track.make_ticks_abs()
 
     return events
+
+def get_last_abs_tick_from_pattern(pattern):
+    was_rel = pattern.tick_relative
+    if was_rel:
+        pattern.make_ticks_abs()
+    last_tick = 0
+    for track in pattern:
+        for event in track:
+            if event.tick > last_tick:
+                last_tick = event.tick
+    if was_rel:
+        pattern.make_ticks_rel()
+    return last_tick
+
+
+def trim_pattern_to_abs_tick(pattern, tick):
+    was_rel = pattern.tick_relative
+    if was_rel:
+        pattern.make_ticks_abs()
+
+    for track in pattern:
+        to_remove = []
+        for event in track:
+            if event.tick > tick:
+                to_remove.append(event)
+        for event in to_remove:
+            track.remove(event)
+
+
+    if was_rel:
+        pattern.make_ticks_rel()
+
 
 
 def track_to_note_list(track):
@@ -423,3 +483,15 @@ def pattern_to_resolution(pattern, resolution=480):
         for event in track:
             event.tick = int(res_multiplier*event.tick)
     pattern.resolution = resolution
+
+
+def track_to_channel(track, channel):
+    for event in track:
+        if event.name == "Note On" or event.name == "Note Off":
+            event.channel = channel
+
+
+def pattern_to_channel(pattern, channel):
+    for track in pattern:
+        track_to_channel(track, channel)
+        

@@ -127,7 +127,6 @@ class MidiDB:
         self.__key_index__ = {}
         self.__scale_index__= {}
         self.__key_scale_index__= {}
-
         #populate key & scale indexs
         for uid in self.keys:
             record = self.shelve_db[uid]
@@ -171,6 +170,13 @@ class MidiDB:
         if record != None: pattern = midi.read_midifile(record["filename"])
         return pattern
 
+    def find_by_filename(self, filename):
+        results = []
+        for uid in self.keys:
+            record = self.shelve_db[uid]
+            if filename in record["filename"]:
+                results.append(record)
+        return results
 
     def records_in_key(self, key):
         if not key in self.__key_index__:
