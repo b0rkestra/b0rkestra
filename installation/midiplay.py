@@ -9,36 +9,61 @@ from midiremap import MidiRemapper
 import mididb
 import midiutil
 import threading
+import Queue
 import copy
 import math
 
 
 class MidiPlayer(threading.Thread):
-    def __init__(self, pattern_queue, resolution=480, client=14, port=0):
+    def __init__(self, bar_size = 7680,resolution=480, client=14, port=0):
         threading.Thread.__init__(self)
-        self.pattern_queue = pattern_queue
+        self.setDaemon(True)
+        self.event_queue = Queue.Queue()
         self.seq = sequencer.SequencerWrite(sequencer_resolution=resolution)
         self.seq.subscribe_port(client, port)
+        self.bar_size = bar_size
+        self.last_tick = 0
+        self.current_tick = 0
 
-
-    def run(self):
+    def append_bar(self, pattern):
+        pattern = copy.deepcopy(pattern)
         pattern.make_ticks_abs()
-        events = []
+        midiutil.trim_pattern_to_abs_tick(pattern, self.bar_size)
+
+        event_list =[]
         for track in pattern:
             for event in track:
-                event = remapper.remap(event)
-                events.append(event)
-        events.sort()
+                event.tick += self.last_tick
+                event_list.append(event)
+        
+        event_list.sort()
+
+        for event in event_list:
+            self.event_queue.put(event)
+
+
+        self.last_tick += self.bar_size
+
+
+    def run(self):  
         self.seq.start_sequencer()
-        for event in events:
+        print dir(self.seq)
+        while True:
+            if self.event_queue.empty():
+                time.sleep(0.05)
+                continue
+
+            event = self.event_queue.get()
             buf = self.seq.event_write(event, False, False, True)
             if buf == None:
                 continue
             if buf < 1000:
-                time.sleep(.5)
+                time.sleep(.005)
             while event.tick > self.seq.queue_get_tick_time():
+                self.current_tick = self.seq.queue_get_tick_time()
                 self.seq.drain()
-                time.sleep(.5)
+                time.sleep(.005)
+        print "Queue empty"
 
 
 class PatternMaker2K:
@@ -179,71 +204,36 @@ def main():
 
     #pattern = drums
 
-    for track in drums:
-        pattern.append(track)
     
 
-    loop_pattern(pattern, midiutil.calculate_bar_duration(pattern), 3)
-
-    #p = copy.deepcopy(pattern)
-    #for i in range(4):
-    #    for index, track in enumerate(pattern):
-    #        track.extend(copy.deepcopy(p[index]))
-
-    #record = db.find_by_filename("./midi-sample/Bruce_Springsteen_-_I'm_On_Fire.mid")
-    #pattern = db.pattern(record[0]['id'])
-    #result_pattern = midi.Pattern(resolution=480) 
-    #result_pattern = pattern
-    #track = midiutil.get_track_from_pattern_with_channel(pattern, 9)
-    #midiutil.remove_events_of_name_from_track(track, "Note Off")
+    #loop_pattern(pattern, midiutil.calculate_bar_duration(pattern), 1)
 
 
 
-    # for event in track:
-    #     if event.name =="Note On":
-    #         #print event.tick
-    #         #event.tick = int(event.tick/4.0)
-    #         print event
+    midi_player = MidiPlayer()
+    midi_player.append_bar(pattern)
+    midi_player.start()
 
-    # result_pattern.append(track)
-    # pattern = result_pattern
+    while threading.active_count() > 0:
+        print midi_player.last_tick, midi_player.current_tick
 
 
+        if midi_player.current_tick > midi_player.last_tick - 2000:
 
+            pattern = patternMaker.generate()
+            pattern = midiutil.get_bar_from_pattern(pattern, 10)
+            drums = drummer.generate_bar()
+            drums = midiutil.get_bar_from_pattern(drums, 0)
+            pattern.extend(drums)
 
+            midi_player.append_bar(pattern)
+            midi_player.append_bar(pattern)
 
+        time.sleep(0.1)
+    midi_player.join()
+    return
 
-
-    #remapper = MidiRemapper("b0rkestra_description.json", pattern)
-
-
-    seq = sequencer.SequencerWrite(sequencer_resolution=pattern.resolution)
-    seq.subscribe_port(client, port)
     
-    pattern.make_ticks_abs()
-    
-
-
-
-    events = []
-    for track in pattern:
-        for event in track:
-            # event = remapper.remap(event)
-            events.append(event)
-    events.sort()
-
-
-
-    seq.start_sequencer()
-    for event in events:
-        buf = seq.event_write(event, False, False, True)
-        if buf == None:
-            continue
-        if buf < 1000:
-            time.sleep(.005)
-        while event.tick > seq.queue_get_tick_time():
-            seq.drain()
-            time.sleep(.005)
 
 
 if __name__ == "__main__":
