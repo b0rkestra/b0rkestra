@@ -50,7 +50,13 @@ def __check_track_for_direct_mapping__(track, description):
             if description["instruments"][instrument]["input_channel"] == channel:
                 range_min = description["instruments"][instrument].get("range_min")
                 range_max = description["instruments"][instrument].get("range_max")
-                return __create_range_mapping_for_track__(track, channel, range_min, range_max)
+                mapping = __create_range_mapping_for_track__(track, channel, range_min, range_max)
+                if description["instruments"][instrument]["input_channel"] == description["instruments"][instrument]["output_channel"]:
+                    return mapping
+                else:
+                    for k in mapping:
+                        mapping[k][0] = description["instruments"][instrument]["output_channel"]
+
         except KeyError:
             pass
     if len(mapping) == 0:
@@ -107,7 +113,6 @@ def __find_missing_instruments_from_mapping__(mapping, description):
         if description["instruments"][instrument].get("input_channel"): continue
         mapped = False
         for note_map in mapping:
-            print mapping[note_map][0]
             if mapping[note_map][0] == description["instruments"][instrument]["output_channel"]:
                 mapped = True
                 break
@@ -138,7 +143,7 @@ def __build_mapping__(description, pattern):
         track = __find_best_fitting_track_for_instrument__(instrument, pattern)
         track_mapping = __create_range_mapping_for_track__(track, instrument["output_channel"], instrument.get("range_min"), instrument.get("range_max"))
         mapping.update(track_mapping)
-        
+
         #print "Missing:", missing_instruments
 
     return mapping

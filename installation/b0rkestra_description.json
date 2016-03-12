@@ -18,7 +18,7 @@
 		},
 		"drums":{
 			"input_channel": 9,
-			"output_channel": 9
+			"output_channel": 15
 		}
 	}
 }
