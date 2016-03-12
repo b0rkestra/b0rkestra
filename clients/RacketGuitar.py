@@ -135,76 +135,76 @@ def racketguitar_callback(path, tags, args, source):
     print(args)
     pin = None
     
-    if(  args[0]==28): # E3
+    if(  args[0]==40): # E3
         pin = 26
          
-    elif(args[0]==29): # F3
+    elif(args[0]==41): # F3
         pin = 19
         
-    elif(args[0]==30): # F#3
+    elif(args[0]==42): # F#3
         pin = 13
         
-    elif(args[0]==31): # G3
+    elif(args[0]==43): # G3
         pin = 6
 
-    elif(args[0]==32): # G#3
+    elif(args[0]==44): # G#3
         pin = 12
         
-    elif(args[0]==33): # A3
+    elif(args[0]==45): # A3
         pin = 16
         
-    elif(args[0]==34): # A#3
+    elif(args[0]==46): # A#3
         pin = 5
         
-    elif(args[0]==35): # B3
+    elif(args[0]==47): # B3
         pin = 7
         
-    elif(args[0]==36): # C4
+    elif(args[0]==48): # C4
         pin = 8
         
-    elif(args[0]==37): # C#4
+    elif(args[0]==49): # C#4
         pin = 11
         
-    elif(args[0]==38): # D4
+    elif(args[0]==50): # D4
         pin = 9
         
-    elif(args[0]==39): # D#4
+    elif(args[0]==51): # D#4
         pin = 10
         
-    elif(args[0]==40): # E4
+    elif(args[0]==52): # E4
         pin = 17
 
-    elif(args[0]==41): # F4
+    elif(args[0]==53): # F4
         pin = 27
 
-    elif(args[0]==42): # F#4
+    elif(args[0]==54): # F#4
         pin = 22
 
-    elif(args[0]==43): # G4
+    elif(args[0]==55): # G4
         pin = 23
 
-    elif(args[0]==44): # G#4
+    elif(args[0]==56): # G#4
         pin = 24
 
-    elif(args[0]==45): # A4
+    elif(args[0]==57): # A4
         pin = 25
     
-    elif(args[0]==46): # A#4
+    elif(args[0]==58): # A#4
         pin = 18
 
-    elif(args[0]==47): # B4
+    elif(args[0]==59): # B4
         pin = 15
 
-    elif(args[0]==48): # C5
+    elif(args[0]==60): # C5
         pin = 14
 
-    elif(args[0]==49): # C#5
+    elif(args[0]==61): # C#5
         pin = 4
 
-    elif(args[0]==50): # D5
+    elif(args[0]==62): # D5
         pin = 3
 
-    elif(args[0]==51): # D#5
+    elif(args[0]==63): # D#5
         pin = 2
 
 

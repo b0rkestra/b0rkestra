@@ -1,15 +1,20 @@
 {
 	"name":"b0rkestra mapping",
 	"instruments":{
-		"racket guitar":{
-			"output_channel": 2,
-			"range_min": 39,
-			"range_max": 63
-		},
 		"sun guitar":{
 			"output_channel": 1,
-			"range_min": 16,
-			"range_max": 39
+			"range_min": 28,
+			"range_max": 51
+		},
+		"racket guitar":{
+			"output_channel": 2,
+			"range_min": 40,
+			"range_max": 63
+		},
+		"tubulum":{
+			"output_channel": 3,
+			"range_min": 48,
+			"range_max": 59
 		},
 		"drums":{
 			"input_channel": 9,

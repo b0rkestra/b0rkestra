@@ -74,7 +74,7 @@ class PatternMaker2K:
         self.scale = scale
         self.tick = 0
 
-    def sample_random_bar(self, tempo=120, channels = [1,2]):
+    def sample_random_bar(self, tempo=120, channels = [1,2,3]):
         print self.key, self.scale
         records = self.db.records_in_key_and_scale(self.key, self.scale)
         print "Working group size", len(records)
@@ -99,7 +99,7 @@ class PatternMaker2K:
         midiutil.turn_notes_off_in_pattern(result_pattern)
         return result_pattern
 
-    def generate_bar(self, instrument_channels =[1,2]):
+    def generate_bar(self, instrument_channels =[1,2,3]):
         return self.sample_random_bar(channels = instrument_channels)
 
 
@@ -223,25 +223,33 @@ def main():
     print db.__scale_index__.keys()
 
 
+    key = "D"
+    scale = "harmonic minor"
 
 
-    patternMaker = PatternMaker2K(db, "D", "harmonic minor")
-    pattern = patternMaker.generate_bar([2])
+
+    racketPatternMaker = PatternMaker2K(db, key, scale)
+    pattern = racketPatternMaker.generate_bar([2])
+    print "Got initial racket pattern"
+
+    tubulumPatternMaker = PatternMaker2K(db, key, scale)
+    #tubulum = tubulumPatternMaker.generate_bar([3])
+    print "Got initial tubulum pattern"
+
 
     drummer = Drummer()
     drums = drummer.generate_bar()
+    print "Got initial drummer pattern"
 
 
-    bass_man = BassMan(db, "D", "harmonic minor")
+    bass_man = BassMan(db, key, scale)
     bass = bass_man.generate_bar()
+    print "Got initial bass pattern"
 
 
     pattern.extend(drums)
     pattern.extend(bass)
-
-    
-
-    #midiutil.loop_pattern(pattern, midiutil.calculate_bar_duration(pattern), 1)
+    #pattern.extend(tubulum)
 
 
 
@@ -256,14 +264,28 @@ def main():
 
         if midi_player.current_tick > midi_player.last_tick - 2000:
 
-            pattern = patternMaker.generate_bar([2])
-            bass = bass_man.generate_bar()
-
+            pattern = racketPatternMaker.generate_bar([2])
             pattern = midiutil.get_bar_from_pattern(pattern, 0)
+            midiutil.turn_notes_off_in_pattern(pattern)
+            
+            bass = bass_man.generate_bar()
+            bass = midiutil.get_bar_from_pattern(bass, 0)
+            midiutil.turn_notes_off_in_pattern(bass)
+
+
             drums = drummer.generate_bar()
             drums = midiutil.get_bar_from_pattern(drums, 0)
+            midiutil.turn_notes_off_in_pattern(drums)
+
+
+            #tubulum = tubulumPatternMaker.generate_bar([3])
+            #tubulum.midiutil.get_bar_from_pattern(tubulum, 0)
+            #midiutil.turn_notes_off_in_pattern(tubulum)
+
+
             pattern.extend(drums)
             pattern.extend(bass)
+            #pattern.extend(tubulum)
 
 
 
