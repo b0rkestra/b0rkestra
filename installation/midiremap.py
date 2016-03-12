@@ -46,16 +46,14 @@ def __check_track_for_direct_mapping__(track, description):
     if channel == None: return None
 
     for instrument in description["instruments"]:
+        instrument =description["instruments"][instrument]
         try:
-            if description["instruments"][instrument]["input_channel"] == channel:
-                range_min = description["instruments"][instrument].get("range_min")
-                range_max = description["instruments"][instrument].get("range_max")
-                mapping = __create_range_mapping_for_track__(track, channel, range_min, range_max)
-                if description["instruments"][instrument]["input_channel"] == description["instruments"][instrument]["output_channel"]:
-                    return mapping
-                else:
-                    for k in mapping:
-                        mapping[k][0] = description["instruments"][instrument]["output_channel"]
+            if instrument["input_channel"] == channel:
+                range_min = instrument.get("range_min")
+                range_max = instrument.get("range_max")
+                mapping = __create_range_mapping_for_track__(track, instrument["output_channel"], range_min, range_max)
+                print mapping
+                return mapping
 
         except KeyError:
             pass

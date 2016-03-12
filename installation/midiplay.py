@@ -12,7 +12,7 @@ import threading
 import Queue
 import copy
 import math
-
+import json
 
 class MidiPlayer(threading.Thread):
     def __init__(self, bar_size = 7680,resolution=480, client=14, port=0):
@@ -159,9 +159,13 @@ class Drummer:
     def __init__(self, drum_dir="mididrum-sample"):
         self.filenames = mididb.get_midi_filenames(drum_dir)
         self.patterns = [midi.read_midifile(filename) for filename in self.filenames]
+        self.channel = json.load(open("b0rkestra_description.json"))["instruments"]["drums"]["output_channel"]
+        
         for p in self.patterns:
             midiutil.pattern_to_resolution(p, 480)
-            midiutil.pattern_to_channel(p, 9)
+            
+
+            midiutil.pattern_to_channel(p,  self.channel)
 
             p.make_ticks_abs()
 
