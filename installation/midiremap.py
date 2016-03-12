@@ -52,7 +52,6 @@ def __check_track_for_direct_mapping__(track, description):
                 range_min = instrument.get("range_min")
                 range_max = instrument.get("range_max")
                 mapping = __create_range_mapping_for_track__(track, instrument["output_channel"], range_min, range_max)
-                print mapping
                 return mapping
 
         except KeyError:
