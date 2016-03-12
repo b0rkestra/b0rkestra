@@ -39,7 +39,8 @@ class MidiPlayer(threading.Thread):
         event_list.sort()
 
         for event in event_list:
-            self.event_queue.put(event)
+            if event.name == "Note On" or event.name == "Note Off":
+                self.event_queue.put(event)
 
 
         self.last_tick += self.bar_size
@@ -67,21 +68,18 @@ class MidiPlayer(threading.Thread):
 
 
 class PatternMaker2K:
-    
     def __init__(self, db, key="E",scale="major" ):
         self.db = db
         self.key = key
         self.scale = scale
         self.tick = 0
 
-    def generate(self, tempo=120):
+    def sample_random_bar(self, tempo=120, channels = [1,2]):
         print self.key, self.scale
         records = self.db.records_in_key_and_scale(self.key, self.scale)
         print "Working group size", len(records)
         result_pattern = midi.Pattern(resolution=480) 
         songs = []
-
-        channels = [1,2]
         for channel in channels:
             track = None
             while track == None:
@@ -96,31 +94,62 @@ class PatternMaker2K:
 
             result_pattern.append(track)
             songs.append(pattern)
+
+        #result_pattern = midiutil.get_bar_from_pattern(result_pattern, random.choice(range(0,10)))
+        midiutil.turn_notes_off_in_pattern(result_pattern)
         return result_pattern
 
-def loop_pattern(pattern, pattern_length, loop_count=4):
-    was_rel = pattern.tick_relative
-    if was_rel:
-        pattern.make_ticks_abs()
-    
-    p_cache = copy.deepcopy(pattern)
-    for i in range(loop_count):
-        tick_skip = (i+1)*pattern_length
-        p_add = copy.deepcopy(p_cache)
-        
-        for track in p_add:
+    def generate_bar(self, instrument_channels =[1,2]):
+        return self.sample_random_bar(channels = instrument_channels)
+
+
+
+class BassMan(PatternMaker2K):
+    def __init__(self, db, key="E", scale="major",instrument_channels=[1]):
+        PatternMaker2K.__init__(self, db, key, scale)
+        self.groove_a = self.sample_random_bar(channels=instrument_channels)
+        self.groove_b = self.sample_random_bar(channels=instrument_channels)
+        self.groove_transition = [0.0, 0.0, 1.0, 0.0]
+        self.groove_position = 0
+        self.instrument_channels = instrument_channels
+
+    def generate_bar(self):
+        result_pattern = midi.Pattern(resolution=self.groove_a.resolution)
+
+        self.groove_a.make_ticks_abs()
+        self.groove_b.make_ticks_abs()
+        for i in range(max(len(self.groove_a), len(self.groove_b))):
+            result_pattern.append(midi.Track())
+        result_pattern.make_ticks_abs()
+
+        for track_index, track in enumerate(self.groove_a):
             for event in track:
-                event.tick += tick_skip
-
-        for index, track in enumerate(pattern):
-            track.extend(p_add[index])
-
-    last_tick = midiutil.get_last_abs_tick_from_pattern(pattern)
+                if random.random()  < 1.0 - (self.groove_transition[self.groove_position]):
+                    result_pattern[track_index].append(copy.deepcopy(event))
 
 
-    if was_rel:
-        pattern.make_ticks_rel()
+        for track_index, track in enumerate(self.groove_b):
+            for event in track:
+                if random.random()  < (self.groove_transition[self.groove_position]):
+                    result_pattern[track_index].append(copy.deepcopy(event))
+        for track in result_pattern:
+            track.sort()
 
+
+        self.groove_a.make_ticks_rel()
+        self.groove_b.make_ticks_rel()
+        result_pattern.make_ticks_rel()
+
+        self.groove_position += 1
+        if self.groove_position >= len(self.groove_transition):
+            self.groove_a = self.groove_b
+            self.groove_b = self.sample_random_bar(channels=self.instrument_channels)
+            self.groove_position = 0
+
+
+        #result_pattern = midiutil.get_bar_from_pattern(result_pattern, random.choice(range(0,18)))
+        midiutil.turn_notes_off_in_pattern(result_pattern)
+        return result_pattern
 
 
 
@@ -149,13 +178,27 @@ class Drummer:
             multiplier = int(round(bar_duration / float(midiutil.get_events_from_pattern(p, "Note On")[-1].tick)))
 
             if multiplier > 1.0:
-                loop_pattern(p, bar_duration/multiplier, multiplier)
+                midiutil.loop_pattern(p, bar_duration/multiplier, multiplier)
                 #print "duration", bar_duration
 
             p.make_ticks_rel()
+        
+        self.drum_change_probability = 0.1
+        self.fill_probability = 0.2
+        self.current_pattern = random.choice(self.patterns)
 
     def generate_bar(self):
-        pattern = random.choice(self.patterns)
+        if random.random() < self.drum_change_probability:
+            self.current_pattern = random.choice(self.patterns)
+
+        pattern = self.current_pattern
+
+        if random.random() < self.fill_probability:
+            print "QUEUE DRUM FILL"
+            pattern = random.choice(self.patterns)
+
+        pattern = midiutil.get_bar_from_pattern(pattern, 0)
+        midiutil.turn_notes_off_in_pattern(pattern)
         return pattern
 
 
@@ -182,35 +225,28 @@ def main():
 
 
 
-    patternMaker = PatternMaker2K(db, "E", "harmonic minor")
-    pattern = patternMaker.generate()
-    pattern = midiutil.get_bar_from_pattern(pattern, 10)
-
+    patternMaker = PatternMaker2K(db, "D", "harmonic minor")
+    pattern = patternMaker.generate_bar([2])
 
     drummer = Drummer()
     drums = drummer.generate_bar()
-    drums = midiutil.get_bar_from_pattern(drums, 0)
 
 
-    last_tick_drums  = midiutil.get_last_abs_tick_from_pattern(drums)
-    print "last tick drums", last_tick_drums
-    last_tick_pattern  = midiutil.get_last_abs_tick_from_pattern(pattern)
-    print "last tick pattern", last_tick_pattern
-
-    print "pattern bar duration: ", midiutil.calculate_bar_duration(pattern)
-    print "drum bar duration:    ", midiutil.calculate_bar_duration(drums)
+    bass_man = BassMan(db, "D", "harmonic minor")
+    bass = bass_man.generate_bar()
 
 
-
-    #pattern = drums
+    pattern.extend(drums)
+    pattern.extend(bass)
 
     
 
-    #loop_pattern(pattern, midiutil.calculate_bar_duration(pattern), 1)
+    #midiutil.loop_pattern(pattern, midiutil.calculate_bar_duration(pattern), 1)
 
 
 
     midi_player = MidiPlayer()
+    midiutil.turn_notes_off_in_pattern(pattern)
     midi_player.append_bar(pattern)
     midi_player.start()
 
@@ -220,11 +256,18 @@ def main():
 
         if midi_player.current_tick > midi_player.last_tick - 2000:
 
-            pattern = patternMaker.generate()
-            pattern = midiutil.get_bar_from_pattern(pattern, 10)
+            pattern = patternMaker.generate_bar([2])
+            bass = bass_man.generate_bar()
+
+            pattern = midiutil.get_bar_from_pattern(pattern, 0)
             drums = drummer.generate_bar()
             drums = midiutil.get_bar_from_pattern(drums, 0)
             pattern.extend(drums)
+            pattern.extend(bass)
+
+
+
+            midiutil.turn_notes_off_in_pattern(pattern)
 
             midi_player.append_bar(pattern)
             midi_player.append_bar(pattern)

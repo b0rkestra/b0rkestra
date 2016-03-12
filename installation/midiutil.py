@@ -494,4 +494,59 @@ def track_to_channel(track, channel):
 def pattern_to_channel(pattern, channel):
     for track in pattern:
         track_to_channel(track, channel)
+
+
+def loop_pattern(pattern, pattern_length, loop_count=4):
+    was_rel = pattern.tick_relative
+    if was_rel:
+        pattern.make_ticks_abs()
+    
+    p_cache = copy.deepcopy(pattern)
+    for i in range(loop_count):
+        tick_skip = (i+1)*pattern_length
+        p_add = copy.deepcopy(p_cache)
         
+        for track in p_add:
+            for event in track:
+                event.tick += tick_skip
+
+        for index, track in enumerate(pattern):
+            track.extend(p_add[index])
+
+    last_tick = get_last_abs_tick_from_pattern(pattern)
+
+    if was_rel:
+        pattern.make_ticks_rel()
+
+
+def turn_notes_off_in_pattern(pattern):
+    was_rel = pattern.tick_relative
+    if was_rel:
+        pattern.make_ticks_abs()
+    
+    last_tick = get_last_abs_tick_from_pattern(pattern)
+    
+    events = []
+    for track in pattern:
+        for event in track:
+            if event.name == "Note On" or event.name == "Note Off":
+                events.append(event)
+    events.sort()
+
+    notes_on = {}
+    for event in events:
+        eventid = str(event.channel) + str(event.pitch)
+        if event.name == "Note On":
+            notes_on[eventid] = event
+        if event.name == "Note Off":
+            try:
+                del notes_on[eventid]
+            except KeyError:
+                pass
+    for i, keys in enumerate(notes_on):
+        event = notes_on[keys]
+        off_event = midi.NoteOffEvent(tick=last_tick, pitch=event.pitch, channel=event.channel)
+        pattern[0].append(off_event)
+
+    if was_rel:
+        pattern.make_ticks_rel()
