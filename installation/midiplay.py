@@ -26,6 +26,7 @@ class MidiPlayer(threading.Thread):
         self.current_tick = 0
 
     def append_bar(self, pattern):
+        print "appending bar"
         pattern = copy.deepcopy(pattern)
         pattern.make_ticks_abs()
         midiutil.trim_pattern_to_abs_tick(pattern, self.bar_size)
@@ -44,6 +45,7 @@ class MidiPlayer(threading.Thread):
 
 
         self.last_tick += self.bar_size
+        print "done appending bar"
 
 
     def run(self):  
@@ -288,8 +290,11 @@ def main():
             midiutil.turn_notes_off_in_pattern(drums)
 
             print "Getting tubulum"
+            print "generating tubulum"
             tubulum = tubulumPatternMaker.generate_bar([3])
+            print "getting bar from tubulum"
             tubulum = midiutil.get_bar_from_pattern(tubulum, 0)
+            print "turning of notes in tubulum"
             midiutil.turn_notes_off_in_pattern(tubulum)
 
 
@@ -302,7 +307,7 @@ def main():
             midiutil.turn_notes_off_in_pattern(pattern)
 
             midi_player.append_bar(pattern)
-            midi_player.append_bar(pattern)
+            #midi_player.append_bar(pattern)
 
         time.sleep(0.1)
     midi_player.join()

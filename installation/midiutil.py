@@ -125,61 +125,76 @@ def split_tracks_to_patterns(pattern):
     return track_patterns
 
 
-def get_bar_from_pattern(pattern, bar_number):
-    pattern = copy.deepcopy(pattern)
+def get_bar_from_pattern(pattern, bar_number, preserve_tempo = False, preserve_track_name = False, preserve_time_signature = False):
+    #pattern = copy.deepcopy(pattern)
     bar_length = calculate_bar_duration(pattern)
     tick_offset = int(bar_number * bar_length)
 
-    if pattern.tick_relative:
+    was_rel = pattern.tick_relative
+
+    if was_rel:
         pattern.make_ticks_abs()
-    
+
+    result_pattern = midi.Pattern(resolution=pattern.resolution, tick_relative=False)
     #time_signature = get_events_from_pattern(pattern, "Time Signature")[0]
 
     for track in pattern:
         to_remove = []
 
-
-        track_names = get_events_from_track(track, "Track Name")
         track_name = None
-        if len(track_names):
-            track_name = track_names[0]
-            track_name.tick = 0
-
-
-        tempos = get_events_from_track(track, "Set Tempo")
         tempo = None
-        if len(tempos):
-            tempo = tempos[0]
-            tempo.tick = 0
-
-
-        time_signatures =get_events_from_track(track, "Time Signature") 
         time_signature = None
-        if len(time_signatures):
-            time_signature = time_signatures[0]
-            time_signature.tick = 0
 
+
+        if preserve_track_name:
+            track_names = get_events_from_track(track, "Track Name")
+            if len(track_names):
+                track_name = copy.deepcopy(track_names[0])
+                track_name.tick = 0
+
+        if preserve_tempo:
+            tempos = get_events_from_track(track, "Set Tempo")
+            if len(tempos):
+                tempo = copy.deepcopy(tempos[0])
+                tempo.tick = 0
+
+        if preserve_time_signature:
+            time_signatures =get_events_from_track(track, "Time Signature") 
+
+            if len(time_signatures):
+                time_signature = copy.deepcopy(time_signatures[0])
+                time_signature.tick = 0
+
+        result_track = midi.Track(tick_relative=False)
 
         for event in track:
             if event.tick >= tick_offset and event.tick < tick_offset + bar_length:
+                event = copy.deepcopy(event)
                 event.tick -= tick_offset
+                result_track.append(event)
             else:
-                to_remove.append(event)
+                pass
+                #to_remove.append(event)
 
-        for event in to_remove:
-            track.remove(event)
 
-        track.append(midi.EndOfTrackEvent(tick=bar_length-1))
-        
+
+        result_track.append(midi.EndOfTrackEvent(tick=bar_length-1))
+
         if track_name:
-            track.insert(0, track_name)
+            result_track.insert(0, track_name)
         if tempo:
-            track.insert(0, tempo)
+            result_track.insert(0, tempo)
         if time_signature:
-            track.insert(0, time_signature)
+            result_track.insert(0, time_signature)
+        
+        result_track.sort()
+        result_pattern.append(result_track)
 
-    pattern.make_ticks_rel()
-    return pattern
+    
+    if was_rel:
+        pattern.make_ticks_rel()
+        result_pattern.make_ticks_rel()
+    return result_pattern
 
 
 def get_track_events_at_tick(track, tick, name = None):
