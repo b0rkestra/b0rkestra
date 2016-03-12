@@ -79,6 +79,42 @@ def __find_best_fitting_instrument_for_track(track, description):
 
 
 
+def __find_best_fitting_track_for_instrument__(instrument, pattern):
+    if instrument.get("input_channel"): return midi.Track()
+
+    fit = {}
+
+    for index, track in enumerate(pattern):
+        miss = 0
+        for event in track:
+            if event.name != "Note On" and event.name != "Note Off": continue
+            if instrument.get("range_min"):
+                if event.pitch < instrument["range_min"]:
+                    miss += 1
+            if instrument.get("range_max"):
+                if event.pitch > instrument["range_max"]:
+                    miss += 1
+        fit[index] = miss
+
+    best_track = pattern[sorted(fit.items(), key=operator.itemgetter(1))[0][0]]
+    return best_track
+
+
+
+def __find_missing_instruments_from_mapping__(mapping, description):
+    missing_instruments = []
+    for instrument in description["instruments"]:
+        if description["instruments"][instrument].get("input_channel"): continue
+        mapped = False
+        for note_map in mapping:
+            print mapping[note_map][0]
+            if mapping[note_map][0] == description["instruments"][instrument]["output_channel"]:
+                mapped = True
+                break
+
+        if mapped == False:
+            missing_instruments.append(description["instruments"][instrument])
+    return missing_instruments
 
 
 
@@ -95,6 +131,15 @@ def __build_mapping__(description, pattern):
         instrument = __find_best_fitting_instrument_for_track(track, description)
         track_mapping = __create_range_mapping_for_track__(track, instrument["output_channel"], instrument.get("range_min"), instrument.get("range_max"))
         mapping.update(track_mapping)
+
+    missing_instruments = __find_missing_instruments_from_mapping__(mapping, description)
+    
+    for instrument in missing_instruments:
+        track = __find_best_fitting_track_for_instrument__(instrument, pattern)
+        track_mapping = __create_range_mapping_for_track__(track, instrument["output_channel"], instrument.get("range_min"), instrument.get("range_max"))
+        mapping.update(track_mapping)
+        
+        #print "Missing:", missing_instruments
 
     return mapping
 

@@ -233,7 +233,7 @@ def main():
     print "Got initial racket pattern"
 
     tubulumPatternMaker = PatternMaker2K(db, key, scale)
-    #tubulum = tubulumPatternMaker.generate_bar([3])
+    tubulum = tubulumPatternMaker.generate_bar([3])
     print "Got initial tubulum pattern"
 
 
@@ -249,7 +249,7 @@ def main():
 
     pattern.extend(drums)
     pattern.extend(bass)
-    #pattern.extend(tubulum)
+    pattern.extend(tubulum)
 
 
 
@@ -278,14 +278,14 @@ def main():
             midiutil.turn_notes_off_in_pattern(drums)
 
 
-            #tubulum = tubulumPatternMaker.generate_bar([3])
-            #tubulum.midiutil.get_bar_from_pattern(tubulum, 0)
-            #midiutil.turn_notes_off_in_pattern(tubulum)
+            tubulum = tubulumPatternMaker.generate_bar([3])
+            tubulum = midiutil.get_bar_from_pattern(tubulum, 0)
+            midiutil.turn_notes_off_in_pattern(tubulum)
 
 
             pattern.extend(drums)
             pattern.extend(bass)
-            #pattern.extend(tubulum)
+            pattern.extend(tubulum)
 
 
 
