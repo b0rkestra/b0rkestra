@@ -75,6 +75,7 @@ class PatternMaker2K:
         self.key = key
         self.scale = scale
         self.tick = 0
+        self.current_pattern = midi.Pattern(resolution=480)
 
     def sample_random_bar(self, tempo=120, channels = [1,2,3]):
         print self.key, self.scale
@@ -103,6 +104,7 @@ class PatternMaker2K:
     def generate_bar(self, instrument_channels =[1,2,3]):
         result_pattern = self.sample_random_bar(channels = instrument_channels)
         midiutil.turn_notes_off_in_pattern(result_pattern)
+        self.current_pattern = result_pattern
         return result_pattern
 
 
@@ -153,6 +155,7 @@ class BassMan(PatternMaker2K):
 
         #result_pattern = midiutil.get_bar_from_pattern(result_pattern, random.choice(range(0,18)))
         midiutil.turn_notes_off_in_pattern(result_pattern)
+        self.current_pattern = result_pattern
         return result_pattern
 
 
@@ -160,7 +163,7 @@ class BassMan(PatternMaker2K):
 class Drummer:
     def __init__(self, drum_dir="mididrum-sample"):
         self.filenames = mididb.get_midi_filenames(drum_dir)
-        self.patterns = [midi.read_midifile(filename) for filename in self.filenames]
+        self.patterns = [midi.read_midifile(filename) for filename in self.filenames if not "fill" in filename]
         self.channel = json.load(open("b0rkestra_description.json"))["instruments"]["drums"]["output_channel"]
         
         for p in self.patterns:
@@ -207,7 +210,58 @@ class Drummer:
 
         pattern = midiutil.get_bar_from_pattern(pattern, 0)
         midiutil.turn_notes_off_in_pattern(pattern)
+        self.current_pattern = pattern
         return pattern
+
+
+
+class SympathyPlayer:
+    def __init__(self, target, channel=2):
+        self.target = target
+        self.instrument = None
+        instruments = json.load(open("b0rkestra_description.json"))["instruments"]
+        for instrument in instruments:
+            if instruments[instrument]["output_channel"] == channel:
+                self.instrument = instruments[instrument]
+
+    def generate_bar(self):
+        target_pattern = self.target.current_pattern
+        max_tick = midiutil.calculate_bar_duration(target_pattern)
+        pattern = midi.Pattern(resolution = target_pattern.resolution, tick_relative=False)
+        track = midi.Track(tick_relative=False)
+
+        was_rel = target_pattern.tick_relative
+        if was_rel:
+            target_pattern.make_ticks_abs()
+
+        for traget_track in target_pattern:
+            for event in traget_track:
+
+
+                if (event.tick%(max_tick/2) == 0 or event.tick%(max_tick/4)==0 or event.tick%(max_tick/8)==0) and event.name =="Note On":
+                    print "ADDING NOTE"
+                    pitch = event.pitch
+                    if random.random() > 0.5:
+                        pitch += 5
+
+                    pitch = midiutil.map_note_to_range(event.pitch, self.instrument["range_min"], self.instrument["range_max"])
+                    e_on = midi.NoteOnEvent(pitch=pitch, velocity=125, tick=event.tick, channel=self.instrument["output_channel"])
+                    e_off = midi.NoteOffEvent(pitch=pitch, velocity=125, tick=event.tick+400, channel=self.instrument["output_channel"])
+                    track.append(e_on)
+                    track.append(e_off)
+
+        if was_rel:
+            target_pattern.make_ticks_rel()
+
+        #for i in range(70):
+            #track.append(midi.NoteOnEvent(tick = i*100, velocity=100, pitch=20+i, channel=2))
+        track.sort()
+        pattern.append(track)
+        pattern.make_ticks_rel()
+
+        #print pattern
+        return pattern
+
 
 
 
@@ -231,35 +285,36 @@ def main():
     print db.__scale_index__.keys()
 
 
-    key = "D"
+    key = "E"
     scale = "harmonic minor"
 
-
-
-    racketPatternMaker = PatternMaker2K(db, key, scale)
-    pattern = racketPatternMaker.generate_bar([2])
-    print "Got initial racket pattern"
-
-    tubulumPatternMaker = PatternMaker2K(db, key, scale)
-    tubulum = tubulumPatternMaker.generate_bar([3])
-    print "Got initial tubulum pattern"
-
-
-    drummer = Drummer()
-    drums = drummer.generate_bar()
-    print "Got initial drummer pattern"
-
+    pattern = midi.Pattern(resolution=480)
 
     bass_man = BassMan(db, key, scale)
     bass = bass_man.generate_bar()
     print "Got initial bass pattern"
-
-
-    pattern.extend(drums)
     pattern.extend(bass)
-    pattern.extend(tubulum)
+
+    #racketPatternMaker = PatternMaker2K(db, key, scale)
+    racketPatternMaker = SympathyPlayer(bass_man)
+    #racket = racketPatternMaker.generate_bar([2])
+    racket = racketPatternMaker.generate_bar()
+    print "Got initial racket pattern"
+    pattern.extend(racket)
 
 
+    tubulumPatternMaker = PatternMaker2K(db, key, scale)
+    tubulum = tubulumPatternMaker.generate_bar([3])
+    print "Got initial tubulum pattern"
+    #pattern.extend(tubulum)
+
+    drummer = Drummer()
+    drums = drummer.generate_bar()
+    print "Got initial drummer pattern"
+    pattern.extend(drums)
+
+
+    
 
     midi_player = MidiPlayer(client=client, port=port)
     midiutil.turn_notes_off_in_pattern(pattern)
@@ -272,35 +327,33 @@ def main():
 
         if midi_player.current_tick > midi_player.last_tick - 5000:
 
-            
-            print "Getting racketc"
-            pattern = racketPatternMaker.generate_bar([2])
-            pattern = midiutil.get_bar_from_pattern(pattern, 0)
-            midiutil.turn_notes_off_in_pattern(pattern)
-            
+            pattern = midi.Pattern(resolution=480)
 
             print "Getting bass"
             bass = bass_man.generate_bar()
             bass = midiutil.get_bar_from_pattern(bass, 0)
             midiutil.turn_notes_off_in_pattern(bass)
+            pattern.extend(bass)
+
+            print "Getting racket"
+            #racket = racketPatternMaker.generate_bar([2])
+            racket = racketPatternMaker.generate_bar()
+            racket = midiutil.get_bar_from_pattern(racket, 0)
+            midiutil.turn_notes_off_in_pattern(racket)
+            pattern.extend(racket)
 
             print "Getting drums"
             drums = drummer.generate_bar()
             drums = midiutil.get_bar_from_pattern(drums, 0)
             midiutil.turn_notes_off_in_pattern(drums)
+            pattern.extend(drums)
+
 
             print "Getting tubulum"
-            print "generating tubulum"
             tubulum = tubulumPatternMaker.generate_bar([3])
-            print "getting bar from tubulum"
             tubulum = midiutil.get_bar_from_pattern(tubulum, 0)
-            print "turning of notes in tubulum"
             midiutil.turn_notes_off_in_pattern(tubulum)
-
-
-            pattern.extend(drums)
-            pattern.extend(bass)
-            pattern.extend(tubulum)
+            #pattern.extend(tubulum)
 
 
 

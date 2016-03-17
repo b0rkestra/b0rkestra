@@ -565,3 +565,17 @@ def turn_notes_off_in_pattern(pattern):
 
     if was_rel:
         pattern.make_ticks_rel()
+
+def map_note_to_range(note, min_note, max_note):
+    if isinstance(note, basestring):
+        note += '0'
+        note = note_to_number(note)
+
+    while note < min_note:
+        note+=12
+
+    while note > max_note:
+        note-=12
+
+    return note
+
