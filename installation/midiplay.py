@@ -77,7 +77,7 @@ class PatternMaker2K:
         self.tick = 0
         self.current_pattern = midi.Pattern(resolution=480)
 
-    def sample_random_bar(self, tempo=120, channels = [1,2,3]):
+    def sample_random_bar(self, tempo=120, channels = [1,2,3], min_notes=0):
         print self.key, self.scale
         records = self.db.records_in_key_and_scale(self.key, self.scale)
         print "Working group size", len(records)
@@ -92,7 +92,16 @@ class PatternMaker2K:
                 midiutil.pattern_to_resolution(pattern, 480)
                 pattern = remapper.remap_pattern(pattern)
                 track = midiutil.get_track_from_pattern_with_channel(pattern, channel)
+
+                ##TODO - Get a single bar from the track rather than using the whole track. Then note number checker sould work.
+
                 if track:
+                    note_on_count = len(midiutil.get_events_from_track(track, "Note On"))
+                    print "NOTE ONS", note_on_count
+                    if note_on_count < min_notes:
+                        print ">>>>>>>>>>>>NOT ENOUGH NOTES!!!"
+                        track = None
+                        continue
                     print self.db.record(uid)["filename"]
                 loop_count += 1
 
@@ -113,8 +122,8 @@ class PatternMaker2K:
 class BassMan(PatternMaker2K):
     def __init__(self, db, key="E", scale="major",instrument_channels=[1]):
         PatternMaker2K.__init__(self, db, key, scale)
-        self.groove_a = self.sample_random_bar(channels=instrument_channels)
-        self.groove_b = self.sample_random_bar(channels=instrument_channels)
+        self.groove_a = self.sample_random_bar(channels=instrument_channels, min_notes=4)
+        self.groove_b = self.sample_random_bar(channels=instrument_channels, min_notes=4)
         self.groove_transition = [0.0, 0.0, 1.0, 0.0]
         self.groove_position = 0
         self.instrument_channels = instrument_channels
@@ -128,19 +137,23 @@ class BassMan(PatternMaker2K):
             result_pattern.append(midi.Track())
         result_pattern.make_ticks_abs()
 
-        for track_index, track in enumerate(self.groove_a):
-            for event in track:
-                if random.random()  < 1.0 - (self.groove_transition[self.groove_position]):
-                    result_pattern[track_index].append(copy.deepcopy(event))
+        # for track_index, track in enumerate(self.groove_a):
+        #     for event in track:
+        #         if random.random()  < 1.0 - (self.groove_transition[self.groove_position]):
+        #             result_pattern[track_index].append(copy.deepcopy(event))
 
 
-        for track_index, track in enumerate(self.groove_b):
-            for event in track:
-                if random.random()  < (self.groove_transition[self.groove_position]):
-                    result_pattern[track_index].append(copy.deepcopy(event))
-        for track in result_pattern:
-            track.sort()
+        # for track_index, track in enumerate(self.groove_b):
+        #     for event in track:
+        #         if random.random()  < (self.groove_transition[self.groove_position]):
+        #             result_pattern[track_index].append(copy.deepcopy(event))
+        # for track in result_pattern:
+        #     track.sort()
 
+        if self.groove_transition[self.groove_position] == 0.0:
+            result_pattern = copy.deepcopy(self.groove_a)
+        if self.groove_transition[self.groove_position] == 0.0:
+            result_pattern = copy.deepcopy(self.groove_b)
 
         self.groove_a.make_ticks_rel()
         self.groove_b.make_ticks_rel()
@@ -149,7 +162,7 @@ class BassMan(PatternMaker2K):
         self.groove_position += 1
         if self.groove_position >= len(self.groove_transition):
             self.groove_a = self.groove_b
-            self.groove_b = self.sample_random_bar(channels=self.instrument_channels)
+            self.groove_b = self.sample_random_bar(channels=self.instrument_channels, min_notes=4)
             self.groove_position = 0
 
 
@@ -180,6 +193,8 @@ class Drummer:
                 for event in track:
                     if not (event.name == "Note On" or event.name == "Note Off"):
                         to_remove.append(event)
+                    #if event.name == "Note On":
+                    #    eve.velocity = 127
                 for event in to_remove:
                     track.remove(event)
 
@@ -209,6 +224,7 @@ class Drummer:
             pattern = random.choice(self.patterns)
 
         pattern = midiutil.get_bar_from_pattern(pattern, 0)
+
         midiutil.turn_notes_off_in_pattern(pattern)
         self.current_pattern = pattern
         return pattern
@@ -239,7 +255,7 @@ class SympathyPlayer:
 
 
                 if (event.tick%(max_tick/2) == 0 or event.tick%(max_tick/4)==0 or event.tick%(max_tick/8)==0) and event.name =="Note On":
-                    print "ADDING NOTE"
+                    #print "ADDING NOTE"
                     pitch = event.pitch
                     if random.random() > 0.5:
                         pitch += 5
@@ -286,13 +302,14 @@ def main():
 
 
     key = "E"
-    scale = "harmonic minor"
+    scale = "minor"
 
     pattern = midi.Pattern(resolution=480)
 
     bass_man = BassMan(db, key, scale)
     bass = bass_man.generate_bar()
     print "Got initial bass pattern"
+    print ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>",len(midiutil.get_events_from_pattern(bass, "Note On"))
     pattern.extend(bass)
 
     #racketPatternMaker = PatternMaker2K(db, key, scale)
@@ -332,6 +349,8 @@ def main():
             print "Getting bass"
             bass = bass_man.generate_bar()
             bass = midiutil.get_bar_from_pattern(bass, 0)
+            print ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>",midiutil.get_events_from_pattern(bass, "Note On")
+
             midiutil.turn_notes_off_in_pattern(bass)
             pattern.extend(bass)
 
