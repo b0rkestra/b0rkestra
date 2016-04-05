@@ -92,10 +92,10 @@ class PatternMaker2K:
                 midiutil.pattern_to_resolution(pattern, 480)
                 pattern = remapper.remap_pattern(pattern)
                 track = midiutil.get_track_from_pattern_with_channel(pattern, channel)
-
                 ##TODO - Get a single bar from the track rather than using the whole track. Then note number checker sould work.
 
                 if track:
+                    track = midiutil.get_bar_from_track(track, 0)
                     note_on_count = len(midiutil.get_events_from_track(track, "Note On"))
                     print "NOTE ONS", note_on_count
                     if note_on_count < min_notes:
@@ -122,9 +122,9 @@ class PatternMaker2K:
 class BassMan(PatternMaker2K):
     def __init__(self, db, key="E", scale="major",instrument_channels=[1]):
         PatternMaker2K.__init__(self, db, key, scale)
-        self.groove_a = self.sample_random_bar(channels=instrument_channels, min_notes=4)
-        self.groove_b = self.sample_random_bar(channels=instrument_channels, min_notes=4)
-        self.groove_transition = [0.0, 0.0, 1.0, 0.0]
+        self.groove_a = self.sample_random_bar(channels=instrument_channels, min_notes=5)
+        self.groove_b = self.sample_random_bar(channels=instrument_channels, min_notes=5)
+        self.groove_transition = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0]
         self.groove_position = 0
         self.instrument_channels = instrument_channels
 
@@ -152,7 +152,7 @@ class BassMan(PatternMaker2K):
 
         if self.groove_transition[self.groove_position] == 0.0:
             result_pattern = copy.deepcopy(self.groove_a)
-        if self.groove_transition[self.groove_position] == 0.0:
+        if self.groove_transition[self.groove_position] == 1.0:
             result_pattern = copy.deepcopy(self.groove_b)
 
         self.groove_a.make_ticks_rel()
@@ -166,7 +166,7 @@ class BassMan(PatternMaker2K):
             self.groove_position = 0
 
 
-        #result_pattern = midiutil.get_bar_from_pattern(result_pattern, random.choice(range(0,18)))
+        #reredsult_pattern = midiutil.get_bar_from_pattern(result_pattern, random.choice(range(0,18)))
         midiutil.turn_notes_off_in_pattern(result_pattern)
         self.current_pattern = result_pattern
         return result_pattern
@@ -257,10 +257,14 @@ class SympathyPlayer:
                 if (event.tick%(max_tick/2) == 0 or event.tick%(max_tick/4)==0 or event.tick%(max_tick/8)==0) and event.name =="Note On":
                     #print "ADDING NOTE"
                     pitch = event.pitch
-                    if random.random() > 0.5:
-                        pitch += 5
-
+                    
                     pitch = midiutil.map_note_to_range(event.pitch, self.instrument["range_min"], self.instrument["range_max"])
+                    if random.random() > 0.5:
+                        print ">>>>>>>>>>>>> up 5"
+                        pitch += 5
+                    if random.random() > 0.5:
+                        print ">>>>>>>>>>>>> up 12"
+                        pitch += 12
                     e_on = midi.NoteOnEvent(pitch=pitch, velocity=125, tick=event.tick, channel=self.instrument["output_channel"])
                     e_off = midi.NoteOffEvent(pitch=pitch, velocity=125, tick=event.tick+400, channel=self.instrument["output_channel"])
                     track.append(e_on)

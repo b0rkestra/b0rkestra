@@ -125,6 +125,72 @@ def split_tracks_to_patterns(pattern):
     return track_patterns
 
 
+
+def get_bar_from_track(track, bar_number, preserve_tempo = False, preserve_track_name = False, preserve_time_signature = False):
+    was_rel = track.tick_relative
+    tmp = midi.Pattern()
+    tmp.append(track)
+
+    bar_length = calculate_bar_duration(tmp)
+    tick_offset = int(bar_number * bar_length)
+
+    if was_rel:
+        track.make_ticks_abs()
+    to_remove = []
+
+    track_name = None
+    tempo = None
+    time_signature = None
+
+
+    if preserve_track_name:
+        track_names = get_events_from_track(track, "Track Name")
+        if len(track_names):
+            track_name = copy.deepcopy(track_names[0])
+            track_name.tick = 0
+
+    if preserve_tempo:
+        tempos = get_events_from_track(track, "Set Tempo")
+        if len(tempos):
+            tempo = copy.deepcopy(tempos[0])
+            tempo.tick = 0
+
+    if preserve_time_signature:
+        time_signatures =get_events_from_track(track, "Time Signature") 
+
+        if len(time_signatures):
+            time_signature = copy.deepcopy(time_signatures[0])
+            time_signature.tick = 0
+
+    result_track = midi.Track(tick_relative=False)
+
+    for event in track:
+        if event.tick >= tick_offset and event.tick < tick_offset + bar_length:
+            event = copy.deepcopy(event)
+            event.tick -= tick_offset
+            result_track.append(event)
+        else:
+            pass
+            #to_remove.append(event)
+
+
+
+    result_track.append(midi.EndOfTrackEvent(tick=bar_length-1))
+
+    if track_name:
+        result_track.insert(0, track_name)
+    if tempo:
+        result_track.insert(0, tempo)
+    if time_signature:
+        result_track.insert(0, time_signature)
+    
+    result_track.sort()    
+    if was_rel:
+        track.make_ticks_rel()
+        result_track.make_ticks_rel()
+    return result_track
+
+
 def get_bar_from_pattern(pattern, bar_number, preserve_tempo = False, preserve_track_name = False, preserve_time_signature = False):
     #pattern = copy.deepcopy(pattern)
     bar_length = calculate_bar_duration(pattern)
